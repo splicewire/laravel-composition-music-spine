@@ -1,12 +1,12 @@
 <?php
 
-namespace Splicewire\CompositionMusicSpineData\Synthesis;
+namespace Splicewire\Composition\Music\Synthesis;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
-use Splicewire\CompositionMusicSpineData\MusicIntent;
+use Splicewire\Composition\Music\MusicIntent;
 
 /**
  * The stage-2 synthesis input (ADR-0128 §1): a `MidiFile` artifact carried **by reference**, never the

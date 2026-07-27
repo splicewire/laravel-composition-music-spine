@@ -25,18 +25,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Splicewire\\CompositionMusicSpineData\\": "src/"
+            "Splicewire\\Composition\\Music\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Splicewire\\CompositionMusicSpineData\\Tests\\": "tests/"
+            "Splicewire\\Composition\\Music\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Splicewire\\CompositionMusicSpineData\\CompositionMusicSpineDataServiceProvider"
+                "Splicewire\\Composition\\Music\\MusicDataServiceProvider"
             ]
         },
         "branch-alias": {

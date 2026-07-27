@@ -1,6 +1,6 @@
 <?php
 
-namespace Splicewire\CompositionMusicSpineData\Synthesis;
+namespace Splicewire\Composition\Music\Synthesis;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;

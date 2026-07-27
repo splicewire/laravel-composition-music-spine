@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Splicewire\CompositionMusicSpineData;
+namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\ArrayItems;
 use Schemastud\DataSchemas\Attributes\Description;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Splicewire\CompositionMusicSpineData\Conformance;
+namespace Splicewire\Composition\Music\Conformance;
 
-use Splicewire\CompositionMusicSpineData\Contracts\MusicConformance;
+use Splicewire\CompositionEngine\Music\Contracts\MusicConformance;
 
 /**
  * The verdict of a {@see MusicConformance} check over a
