@@ -20,6 +20,7 @@
         "laravel/pint": "^1.0",
         "orchestra/testbench": "^10.0",
         "pestphp/pest": "^3.0",
+        "spatie/laravel-typescript-transformer": "^3.0",
         "wikimedia/composer-merge-plugin": "^2.1"
     },
     "autoload": {

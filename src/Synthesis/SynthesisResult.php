@@ -1,12 +1,11 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\CompositionMusicSpineData\Synthesis;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Data;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /**
  * The stage-2 synthesis output (ADR-0128 §5): the synthesized audio artifact by reference plus the
@@ -18,8 +17,9 @@ use Spatie\LaravelData\Data;
  * metered quantity: it varies by hardware/load/retries and would expose the platform's ops variance to
  * a tenant's invoice (ADR-0128 §5, rejected alternative).
  */
+#[TypeScript]
 #[Title('Synthesis result')]
-final class SynthesisResult extends Data
+class SynthesisResult extends Data
 {
     public function __construct(
         #[Title('Audio artifact URL')]

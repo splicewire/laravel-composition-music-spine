@@ -1,12 +1,11 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\CompositionMusicSpineData\Synthesis;
 
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Data;
+use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\CompositionMusicSpineData\MusicIntent;
 
 /**
@@ -15,8 +14,9 @@ use Splicewire\CompositionMusicSpineData\MusicIntent;
  * intent would leak audiostud's arrangement moat across the seam — rejected). The satellite arranges the
  * MidiFile locally, then hands only this reference to the platform to synthesize audio.
  */
+#[TypeScript]
 #[Title('Synthesis request')]
-final class SynthesisRequest extends Data
+class SynthesisRequest extends Data
 {
     public function __construct(
         #[Title('MIDI artifact reference')]
