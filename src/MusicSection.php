@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\ArrayItems;
@@ -21,7 +19,7 @@ use Spatie\LaravelData\Optional;
  * `required` — the writability constraint that lets the LLM omit them.
  */
 #[Title('Section')]
-final class MusicSection extends Data
+class MusicSection extends Data
 {
     /**
      * @param  array<int, string>  $chords

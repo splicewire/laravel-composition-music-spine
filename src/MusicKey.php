@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\Description;
@@ -13,7 +11,7 @@ use Spatie\LaravelData\Data;
  * SongKey). Not a notation format: just the two coordinates the Arranger needs to spell chords.
  */
 #[Title('Key')]
-final class MusicKey extends Data
+class MusicKey extends Data
 {
     public function __construct(
         #[Title('Tonic')]

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music\Conformance;
 
 use Splicewire\Composition\Music\Contracts\MusicConformance;
@@ -13,7 +11,7 @@ use Splicewire\Composition\Music\MusicIntent;
  * surprise render-blocking. A host binds {@see StructuralMusicConformance} (cheap mandatory checks) or a
  * config-gated popcorn Process override (Tonal/`music21`) over the same {@see MusicConformance} port.
  */
-final class NullMusicConformance implements MusicConformance
+class NullMusicConformance implements MusicConformance
 {
     public function check(MusicIntent $intent): ConformanceResult
     {

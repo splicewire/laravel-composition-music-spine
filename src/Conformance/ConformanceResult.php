@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music\Conformance;
 
 use Splicewire\CompositionEngine\Music\Contracts\MusicConformance;
@@ -16,15 +14,15 @@ use Splicewire\CompositionEngine\Music\Contracts\MusicConformance;
  * mismatch); `advisory` violations are surfaced but do not block (in-key coherence, spelling) — the
  * mandatory-vs-advisory split is the build-effort call recorded in issue 07.
  */
-final class ConformanceResult
+class ConformanceResult
 {
     /**
      * @param  array<int, string>  $mandatory  blocking violations
      * @param  array<int, string>  $advisory  non-blocking violations
      */
     public function __construct(
-        public readonly array $mandatory = [],
-        public readonly array $advisory = [],
+        public array $mandatory = [],
+        public array $advisory = [],
     ) {}
 
     /** Conformant when there are no *mandatory* violations (advisories never block). */

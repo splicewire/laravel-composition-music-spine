@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\Description;

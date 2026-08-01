@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music\Conformance;
 
 use Splicewire\Composition\Music\Contracts\MusicConformance;
@@ -28,7 +26,7 @@ use Splicewire\Composition\Music\MusicSection;
  *
  * The mandatory-vs-advisory split is the build-effort call recorded in issue 07.
  */
-final class StructuralMusicConformance implements MusicConformance
+class StructuralMusicConformance implements MusicConformance
 {
     /** Semitone offsets of the major and (natural) minor scales from the tonic. */
     private const MAJOR = [0, 2, 4, 5, 7, 9, 11];

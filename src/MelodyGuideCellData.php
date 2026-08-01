@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\Description;
@@ -20,7 +18,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * intake and a satellite's projection share the one shape (drift-safe projection).
  */
 #[Title('Melody guide')]
-final class MelodyGuideCellData extends Data
+class MelodyGuideCellData extends Data
 {
     public function __construct(
         #[Title('Melody reference')]

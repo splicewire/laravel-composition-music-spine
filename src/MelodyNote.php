@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\Description;
@@ -14,7 +12,7 @@ use Spatie\LaravelData\Data;
  * adapter can place it under any tempo/meter.
  */
 #[Title('Melody note')]
-final class MelodyNote extends Data
+class MelodyNote extends Data
 {
     public function __construct(
         #[Title('Pitch')]

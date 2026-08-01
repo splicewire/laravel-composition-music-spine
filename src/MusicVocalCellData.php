@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use Schemastud\DataSchemas\Attributes\Description;
@@ -23,7 +21,7 @@ use Spatie\LaravelData\Mappers\SnakeCaseMapper;
  * break at construct, not silently at read (drift-safe projection).
  */
 #[Title('Vocal')]
-final class MusicVocalCellData extends Data
+class MusicVocalCellData extends Data
 {
     public function __construct(
         #[Title('Lyric')]

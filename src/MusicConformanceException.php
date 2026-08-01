@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Splicewire\Composition\Music;
 
 use RuntimeException;
@@ -18,9 +16,9 @@ use Splicewire\Composition\Music\Conformance\ConformanceResult;
  * failing {@see ConformanceResult}) is carried on {@see MusicConformanceException::$result} so a caller
  * can surface the exact violations.
  */
-final class MusicConformanceException extends RuntimeException
+class MusicConformanceException extends RuntimeException
 {
-    public function __construct(public readonly ConformanceResult $result)
+    public function __construct(public ConformanceResult $result)
     {
         $violations = implode(' ', $result->mandatory);
 
