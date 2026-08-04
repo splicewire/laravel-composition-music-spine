@@ -1,5 +1,5 @@
 {
-    "name": "splicewire/laravel-composition-music-spine-data",
+    "name": "splicewire/laravel-composition-music-spine",
     "description": "The shared, satellite-importable surface of the MIDI/music generation seam: the platform-coined MusicIntent wire format (a song-agnostic generation-intent DTO — key, tempo, meter, ordered sections of chords + energy + roles + optional beat-relative melody) and the RenderInvocable contract (render is an invocable over the format, not the kernel RenderContract). The heavy transpose engine + deterministic Arranger stay private; this is the format satellites and the client share without them (ADR-0125).",
     "type": "library",
     "keywords": ["laravel", "composition", "music", "midi", "intent", "schema"],
