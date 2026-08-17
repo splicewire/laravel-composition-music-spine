@@ -2,7 +2,7 @@
 
 namespace Splicewire\Composition\Music\Conformance;
 
-use Splicewire\CompositionEngine\Music\Contracts\MusicConformance;
+use Splicewire\Composition\Music\Contracts\MusicConformance;
 
 /**
  * The verdict of a {@see MusicConformance} check over a
