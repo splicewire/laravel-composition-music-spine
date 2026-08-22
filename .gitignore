@@ -1,1 +1,9 @@
+/.phpunit.cache
+/vendor
+/composer.lock
+/composer.local.json
+/.fleet
+/.idea
+/.vscode
+/.phpunit.result.cache
 CLAUDE.md
