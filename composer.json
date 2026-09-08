@@ -1,8 +1,17 @@
 {
     "name": "splicewire/laravel-composition-music-spine",
-    "description": "The shared, satellite-importable surface of the music AUDIO-WORK seam: the platform-coined MusicIntent wire format (a song-agnostic generation-intent DTO — key, tempo, meter, ordered sections of chords + energy + roles + optional beat-relative melody) and the RenderInvocable contract (render is an invocable over the format, not the kernel RenderContract), plus the wire DTOs for the two audio ports the engine hosts — SynthesisRequest/Result for audio out (ADR-0128) and AnalysisRequest/Result for audio in (ADR-0211). Audio crosses by reference in both directions, never inline. The heavy transpose engine + deterministic Arranger + every analysis binding stay private; this is the format satellites and the client share without them (ADR-0125).",
+    "description": "The shared, satellite-importable surface of the music AUDIO-WORK seam: the platform-coined MusicIntent wire format (a song-agnostic generation-intent DTO \u2014 key, tempo, meter, ordered sections of chords + energy + roles + optional beat-relative melody) and the RenderInvocable contract (render is an invocable over the format, not the kernel RenderContract), plus the wire DTOs for the two audio ports the engine hosts \u2014 SynthesisRequest/Result for audio out (ADR-0128) and AnalysisRequest/Result for audio in (ADR-0211). Audio crosses by reference in both directions, never inline. The heavy transpose engine + deterministic Arranger + every analysis binding stay private; this is the format satellites and the client share without them (ADR-0125).",
     "type": "library",
-    "keywords": ["laravel", "composition", "music", "midi", "intent", "schema", "audio", "analysis"],
+    "keywords": [
+        "laravel",
+        "composition",
+        "music",
+        "midi",
+        "intent",
+        "schema",
+        "audio",
+        "analysis"
+    ],
     "license": "proprietary",
     "authors": [
         {
@@ -43,7 +52,9 @@
             "dev-main": "1.0.x-dev"
         },
         "merge-plugin": {
-            "include": ["composer.local.json"]
+            "include": [
+                "composer.local.json"
+            ]
         }
     },
     "config": {
@@ -58,5 +69,42 @@
     "scripts": {
         "test": "@php vendor/bin/pest",
         "pint": "@php -d memory_limit=512M vendor/bin/pint"
-    }
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../../rushing/laravel-pipeline-registry",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../rushing/laravel-popcorn",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../rushing/php-popcorn",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../schemastud/laravel-data-schemas",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../schemastud/php-json-ns",
+            "options": {
+                "symlink": true
+            }
+        }
+    ]
 }
