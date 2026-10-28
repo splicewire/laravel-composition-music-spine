@@ -29,3 +29,14 @@ contract, independently bindable (local or remote) and independently metered. St
 The metering unit for synthesis — seconds of output audio produced. Reproducible and hardware-independent.
 Distinct from wall/CPU-seconds, which is internal cost telemetry, never the tenant-facing meter.
 _Avoid_: render minutes, compute seconds (ambiguous with wall time).
+
+**Chord change**:
+A chord and the beat in its section where it starts to sound; a bar's chord is the change sounding at its downbeat.
+
+**Syllable onset**:
+The beat in its section where a lyric syllable is sung. Lyrics belong to what is printed, never to the intent.
+_Avoid_: lyric timing
+
+**Lyric block**:
+The song's lyrics printed as verse text after the score's music; distinct from the syllables under the notes and from the chart.
+_Avoid_: lyric sheet, lyric page

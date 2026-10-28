@@ -1,0 +1,153 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "title": "Music intent",
+    "properties": {
+        "key": {
+            "$ref": "#/$defs/MusicKey",
+            "title": "Key"
+        },
+        "sections": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/MusicSection"
+            },
+            "title": "Sections",
+            "description": "Ordered musical form; each section is N bars = N chords."
+        },
+        "tempo": {
+            "type": "integer",
+            "title": "Tempo (BPM)",
+            "description": "Default quarter-note tempo. The Arranger no longer infers from occasion. A section may override.",
+            "default": 96
+        },
+        "meter": {
+            "type": "string",
+            "title": "Meter",
+            "description": "Default time signature, e.g. \"4/4\", \"3/4\", \"6/8\". A section may override.",
+            "default": "4/4"
+        },
+        "feel": {
+            "type": "string",
+            "x-optional": true,
+            "title": "Feel",
+            "description": "Named vibe biasing density/tempo (Arranger Feel::fromArray)."
+        },
+        "seed": {
+            "type": "integer",
+            "x-optional": true,
+            "title": "Seed",
+            "description": "Optional performance-pin for byte-reproducible render. Omit → content-hash default. The LLM never invents a seed."
+        }
+    },
+    "required": [
+        "key",
+        "sections",
+        "tempo",
+        "meter"
+    ],
+    "$id": "https://app.splicewire.com/schemas/music/intent/1",
+    "$defs": {
+        "MusicKey": {
+            "type": "object",
+            "title": "Key",
+            "properties": {
+                "tonic": {
+                    "type": "string",
+                    "title": "Tonic",
+                    "description": "Note name: \"C\", \"G\", \"Eb\", \"F#\"."
+                },
+                "mode": {
+                    "type": "string",
+                    "title": "Mode",
+                    "description": "\"major\" or \"minor\".",
+                    "default": "major"
+                }
+            },
+            "required": [
+                "tonic",
+                "mode"
+            ]
+        },
+        "MelodyNote": {
+            "type": "object",
+            "title": "Melody note",
+            "properties": {
+                "pitch": {
+                    "type": "integer",
+                    "title": "Pitch",
+                    "description": "Absolute MIDI pitch 0–127 (middle C = 60)."
+                },
+                "start": {
+                    "type": "number",
+                    "title": "Start (beats)",
+                    "description": "Beat offset from section start; 0.5 = mid-beat-1."
+                },
+                "duration": {
+                    "type": "number",
+                    "title": "Duration (beats)",
+                    "description": "Length in beats; 1.0 = quarter note."
+                }
+            },
+            "required": [
+                "pitch",
+                "start",
+                "duration"
+            ]
+        },
+        "MusicSection": {
+            "type": "object",
+            "title": "Section",
+            "properties": {
+                "tag": {
+                    "type": "string",
+                    "title": "Role / energy tag",
+                    "description": "INTRO | VERSE | CHORUS | BRIDGE | OUTRO | INSTRUMENTAL — drives density/velocity."
+                },
+                "chords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "title": "Chords (one per bar)",
+                    "description": "Chord symbols, one per bar: [\"C\",\"Am\",\"F\",\"G\"]. Bar count = array length."
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "title": "Active roles",
+                    "description": "Which parts play: drums|bass|keys|pad|lead|vocal. Empty = Arranger default (all).",
+                    "default": []
+                },
+                "melody": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/MelodyNote"
+                    },
+                    "x-optional": true,
+                    "title": "Melody",
+                    "description": "Optional real melodic line (beat-relative). Omit → Arranger derives one (MelodyWriter)."
+                },
+                "tempo": {
+                    "type": "integer",
+                    "x-optional": true,
+                    "title": "Tempo override (BPM)",
+                    "description": "Optional. Overrides the song tempo from this section onward."
+                },
+                "meter": {
+                    "type": "string",
+                    "x-optional": true,
+                    "title": "Meter override",
+                    "description": "Optional. Overrides the song meter from this section onward, e.g. \"6/8\"."
+                }
+            },
+            "required": [
+                "tag",
+                "chords",
+                "roles"
+            ]
+        }
+    }
+}

@@ -19,9 +19,16 @@ use Spatie\LaravelData\Optional;
  * MIDI is one render target; the T05 adapter materializes this into the Arranger's input.
  *
  * Renamed from the pre-ratification `MidiIntentData` (T06): bare wire-DTO name (no `Data` suffix), Kind
- * `music/intent`. Versioned via {@see SchemaIdentity} (`music/intent` v1) so a persisted intent carries
- * the schema version it was written under; the *platform cell layer* (T04, app-local) adds the
- * migrate-on-read concern over this plain payload. Non-`final` so a subclass may host that concern.
+ * `music/intent`. Versioned via {@see SchemaIdentity} so a persisted intent carries the schema version it
+ * was written under; the *platform cell layer* (T04, app-local) adds the migrate-on-read concern over this
+ * plain payload. Non-`final` so a subclass may host that concern.
+ *
+ * **v2** (music-capability-lift ticket 02 Q1) adds what *sounds* and notation needs: {@see self::$pickup}
+ * and {@see MusicSection::$changes}. Both are additive and `Optional`, so a v1 payload is a valid v2 payload
+ * with the same meaning. **Lyrics never enter the intent**: a fact about the music goes here, a fact about
+ * the page (credits, labels, lyrics, syllable onsets, cues) goes in a
+ * {@see Notation\NotationRequest}. A consumer that cannot honour `pickup` or `changes` refuses by name;
+ * it never drops them.
  */
 #[Title('Music intent')]
 class MusicIntent extends Data implements SchemaIdentity
@@ -53,15 +60,29 @@ class MusicIntent extends Data implements SchemaIdentity
         #[Title('Seed')]
         #[Description('Optional performance-pin for byte-reproducible render. Omit → content-hash default. The LLM never invents a seed.')]
         public int|Optional $seed = new Optional,
+
+        #[Title('Pickup (beats)')]
+        #[Description('Optional (v2). Beats before bar 1 of section 0 (an anacrusis). Section 0 melody may then start as early as -pickup. Omit or 0 → no pickup.')]
+        public float|Optional $pickup = new Optional,
     ) {}
+
+    /** The pickup in beats, `0.0` when the intent declares none (absent and `0` mean the same). */
+    public function pickupBeats(): float
+    {
+        return is_float($this->pickup) ? $this->pickup : 0.0;
+    }
 
     public static function schemaName(): string
     {
         return 'music/intent';
     }
 
+    /**
+     * Version 2 (music-capability-lift build/03): gained `pickup` and `MusicSection.changes`, additive and
+     * `Optional`, so the v1 → v2 step is the identity on a stored payload. v1 stays as it was projected.
+     */
     public static function schemaVersion(): int
     {
-        return 1;
+        return 2;
     }
 }

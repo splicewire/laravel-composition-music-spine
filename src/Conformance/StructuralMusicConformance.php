@@ -2,6 +2,7 @@
 
 namespace Splicewire\Composition\Music\Conformance;
 
+use Splicewire\Composition\Music\ChordChange;
 use Splicewire\Composition\Music\Contracts\MusicConformance;
 use Splicewire\Composition\Music\MelodyNote;
 use Splicewire\Composition\Music\MusicIntent;
@@ -18,7 +19,15 @@ use Splicewire\Composition\Music\MusicSection;
  *  - tempo sanity: song + per-section tempo strictly positive;
  *  - meter sanity: song + per-section meter parses as `n/d`, numerator > 0, denominator a power of two;
  *  - bar math: every section has at least one chord (bar count = chord count ≥ 1);
- *  - melody timing: start ≥ 0, duration > 0.
+ *  - melody timing: duration > 0, and start no earlier than the section allows — `-pickup` in section 0
+ *    (0 without a pickup), one bar of the previous section's meter in a later section (a lead-in);
+ *  - pickup (v2): not negative;
+ *  - chord changes (v2): `start` ≥ 0 (until build/26 admits the pickup chord), strictly increasing, inside
+ *    the section, a non-empty symbol, and **downbeat consistency** — `chords[i]` equals the change sounding
+ *    at bar *i*'s downbeat (music-capability-lift ticket 02 Q1).
+ *
+ * Bars are measured in beats (quarter notes, as {@see MelodyNote}) in the section's effective meter: its own
+ * override, else the latest earlier override, else the song meter ("from this section onward").
  *
  * **Advisory checks (surfaced, never block):**
  *  - in-key coherence: a thin diatonic membership test of melody pitch-classes against the key. This is
@@ -32,6 +41,9 @@ class StructuralMusicConformance implements MusicConformance
     private const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
     private const MINOR = [0, 2, 3, 5, 7, 8, 10];
+
+    /** Beat comparisons tolerate float noise (a beat is a quarter note; 1e-9 is far below any real onset). */
+    private const EPSILON = 1e-9;
 
     /** Pitch class of each note name (sharps + flats). */
     private const PITCH_CLASS = [
@@ -58,11 +70,29 @@ class StructuralMusicConformance implements MusicConformance
             $mandatory[] = "Unrecognized key tonic \"{$intent->key->tonic}\".";
         }
 
+        $pickup = $intent->pickupBeats();
+        if (! is_finite($pickup) || $pickup < 0) {
+            $mandatory[] = "The pickup {$pickup} must be a non-negative number of beats.";
+            $pickup = 0.0;
+        }
+
+        $meter = $intent->meter;
+        $previousBar = null;
+
         foreach ($intent->sections as $i => $section) {
             if (! $section instanceof MusicSection) {
                 continue;
             }
             $where = "Section {$i} ({$section->tag})";
+
+            if (is_string($section->meter)) {
+                $meter = $section->meter;
+            }
+            $bar = self::barBeats($meter);
+            $floor = $i === 0 ? -$pickup : -($previousBar ?? 0.0);
+            $previousBar = $bar;
+
+            $this->checkChanges($where, $section, $bar, $mandatory);
 
             if (count($section->chords) < 1) {
                 $mandatory[] = "{$where} has no chords (a section must be at least one bar).";
@@ -83,8 +113,10 @@ class StructuralMusicConformance implements MusicConformance
                     if ($note->pitch < 0 || $note->pitch > 127) {
                         $mandatory[] = "{$where} melody note {$n} pitch {$note->pitch} is outside MIDI range 0–127.";
                     }
-                    if ($note->start < 0) {
-                        $mandatory[] = "{$where} melody note {$n} start {$note->start} is negative.";
+                    if ($note->start < $floor - self::EPSILON) {
+                        $mandatory[] = $floor === 0.0
+                            ? "{$where} melody note {$n} start {$note->start} is negative."
+                            : "{$where} melody note {$n} start {$note->start} is before {$floor}, the earliest this section allows.";
                     }
                     if ($note->duration <= 0) {
                         $mandatory[] = "{$where} melody note {$n} duration {$note->duration} must be positive.";
@@ -97,6 +129,79 @@ class StructuralMusicConformance implements MusicConformance
         }
 
         return new ConformanceResult(mandatory: $mandatory, advisory: $advisory);
+    }
+
+    /**
+     * The v2 chord-change floor for one section. `$bar` is the section's bar length in beats, or null when
+     * its effective meter does not parse (that is already a meter violation; bar positions are then unknown).
+     *
+     * @param  array<int, string>  $mandatory
+     */
+    private function checkChanges(string $where, MusicSection $section, ?float $bar, array &$mandatory): void
+    {
+        $changes = $section->changeList();
+        if ($changes === []) {
+            return;
+        }
+
+        $ordered = true;
+        $previous = null;
+        foreach ($changes as $c => $change) {
+            if (! $change instanceof ChordChange) {
+                return;
+            }
+            if (trim($change->symbol) === '') {
+                $mandatory[] = "{$where} chord change {$c} has an empty symbol.";
+            }
+            if (! is_finite($change->start)) {
+                $mandatory[] = "{$where} chord change {$c} start must be a finite number of beats.";
+                $ordered = false;
+
+                continue;
+            }
+            if ($change->start < 0) {
+                $mandatory[] = "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is negative; a change sounds from the section's first downbeat onward.";
+            }
+            if ($previous !== null && $change->start <= $previous + self::EPSILON) {
+                $mandatory[] = "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is not after the previous change; changes must be in strictly increasing start order.";
+                $ordered = false;
+            }
+            if ($bar !== null && $change->start >= count($section->chords) * $bar - self::EPSILON) {
+                $mandatory[] = "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is past the section's last bar.";
+            }
+            $previous = $change->start;
+        }
+
+        if (! $ordered || $bar === null) {
+            return;
+        }
+
+        // Downbeat consistency: chords[i] is the change sounding at bar i's downbeat.
+        foreach (array_values($section->chords) as $b => $chord) {
+            $downbeat = $b * $bar;
+            $sounding = null;
+            foreach ($changes as $change) {
+                if ($change->start <= $downbeat + self::EPSILON) {
+                    $sounding = $change->symbol;
+                }
+            }
+
+            if ($sounding === null) {
+                $mandatory[] = "{$where} bar {$b} has no chord change sounding at its downbeat (chords[{$b}] is \"{$chord}\").";
+            } elseif ($sounding !== $chord) {
+                $mandatory[] = "{$where} bar {$b}: chords[{$b}] is \"{$chord}\" but the change sounding at its downbeat is \"{$sounding}\".";
+            }
+        }
+    }
+
+    /** A bar's length in beats (quarter notes) for an `n/d` meter, or null when the meter does not parse. */
+    private static function barBeats(string $meter): ?float
+    {
+        if (! preg_match('/^(\d+)\/(\d+)$/', $meter, $m) || (int) $m[1] < 1 || (int) $m[2] < 1) {
+            return null;
+        }
+
+        return (int) $m[1] * 4 / (int) $m[2];
     }
 
     /**
