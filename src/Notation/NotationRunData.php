@@ -52,10 +52,14 @@ class NotationRunData extends Data
                 : "A {$state->value} notation run carries no result; only completed does.");
         }
 
-        if ($failed !== ($error !== null && $error !== '')) {
-            throw new InvalidArgumentException($failed
-                ? 'A failed notation run must carry a non-empty error.'
-                : "A {$state->value} notation run carries no error; only failed does.");
+        // `failed` needs a non-empty error; every other state needs none at all — an empty string is still
+        // an error member present on the wire, so it is refused outside `failed` rather than read as absence.
+        if ($failed && ($error === null || $error === '')) {
+            throw new InvalidArgumentException('A failed notation run must carry a non-empty error.');
+        }
+
+        if (! $failed && $error !== null) {
+            throw new InvalidArgumentException("A {$state->value} notation run carries no error; only failed does.");
         }
     }
 }

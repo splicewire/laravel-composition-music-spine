@@ -94,3 +94,31 @@ it('refuses a result outside completed and an error outside failed', function ()
     expect(fn () => NotationRunData::from(runPayload('none', ['error' => 'x'])))
         ->toThrow(InvalidArgumentException::class);
 });
+
+it('holds error exactly when failed across every state × {null, empty, non-empty} error', function (string $state, ?string $error, bool $accepted) {
+    $extra = $state === 'completed' ? ['result' => notationResultPayload()] : [];
+    if ($error !== null) {
+        $extra['error'] = $error;
+    }
+
+    $build = fn () => NotationRunData::from(runPayload($state, $extra));
+
+    if ($accepted) {
+        expect($build()->error)->toBe($error);
+    } else {
+        expect($build)->toThrow(InvalidArgumentException::class);
+    }
+})->with([
+    'none, null' => ['none', null, true],
+    'none, empty' => ['none', '', false],
+    'none, non-empty' => ['none', 'x', false],
+    'pending, null' => ['pending', null, true],
+    'pending, empty' => ['pending', '', false],
+    'pending, non-empty' => ['pending', 'x', false],
+    'completed, null' => ['completed', null, true],
+    'completed, empty' => ['completed', '', false],
+    'completed, non-empty' => ['completed', 'x', false],
+    'failed, null' => ['failed', null, false],
+    'failed, empty' => ['failed', '', false],
+    'failed, non-empty' => ['failed', 'stale', true],
+]);
