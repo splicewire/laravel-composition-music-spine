@@ -14,6 +14,10 @@ use Spatie\LaravelData\Data;
  *
  * `start` is in beats (quarter notes, as {@see MelodyNote}) from the section start, and is never negative
  * until build/26 admits the pickup chord.
+ *
+ * A {@see Transcription\ChartDraftData} reuses this class unchanged in its own **draft coordinate**: `start` in
+ * beats from draft bar 0's downbeat, negative in the pickup. {@see Transcription\ChartDraftSections::apply()}
+ * rebases it to the section coordinate above.
  */
 #[Title('Chord change')]
 class ChordChange extends Data

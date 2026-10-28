@@ -24,7 +24,7 @@ use Splicewire\Composition\Music\MusicKey;
  * change: it rides beside it in `change_meta`, aligned by index.
  *
  * **Held at construction** (the coordinate's own consistency, so a malformed draft fails where it is made, not in a
- * conversion later): bars are indexed 0…n−1 in order, each a positive number of beats, bar 0 starting at beat 0 and
+ * conversion later): `tempo_bpm` is positive; bars are indexed 0…n−1 in order, each a positive number of beats, bar 0 starting at beat 0 and
  * each later bar where the previous one ends; `pickup_beats` is not negative; changes are strictly increasing and lie
  * in `[-pickup_beats, Σ beats)`; every `change_meta` index names a change and every `review_order` entry a bar, at
  * most once each.
@@ -87,13 +87,23 @@ class ChartDraftData extends Data
         #[ArrayItems('integer')]
         public array $reviewOrder,
     ) {
+        if (! is_finite($tempoBpm) || $tempoBpm <= 0) {
+            throw new InvalidArgumentException("A chart draft's tempo_bpm must be a positive number, got {$tempoBpm}.");
+        }
+
         if (! is_finite($pickupBeats) || $pickupBeats < 0) {
             throw new InvalidArgumentException("A chart draft's pickup_beats must be a non-negative number of beats, got {$pickupBeats}.");
         }
 
         $end = $this->checkBars($bars);
         $this->checkChanges($changes, $pickupBeats, $end);
-        $this->checkIndices('change_meta', array_map(static fn (DraftChangeMetaData $meta): int => $meta->index, $changeMeta), count($changes), 'change');
+        $this->checkIndices('change_meta', array_map(static function (mixed $meta): int {
+            if (! $meta instanceof DraftChangeMetaData) {
+                throw new InvalidArgumentException('A chart draft\'s change_meta entries are DraftChangeMetaData.');
+            }
+
+            return $meta->index;
+        }, $changeMeta), count($changes), 'change');
         $this->checkIndices('review_order', $reviewOrder, count($bars), 'bar');
     }
 

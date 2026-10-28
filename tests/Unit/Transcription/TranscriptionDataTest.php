@@ -215,6 +215,8 @@ it('refuses a tempo prior that is not a positive integer BPM', function (int $bp
 it('holds the draft coordinate at construction', function (array $overrides, string $message) {
     expect(fn () => ChartDraftData::from(chartDraftPayload($overrides)))->toThrow(InvalidArgumentException::class, $message);
 })->with([
+    'zero tempo' => [['tempo_bpm' => 0.0], 'tempo_bpm'],
+    'negative tempo' => [['tempo_bpm' => -96.0], 'tempo_bpm'],
     'negative pickup' => [['pickup_beats' => -1.0, 'changes' => [['symbol' => 'G', 'start' => 0.0]], 'change_meta' => []], 'pickup_beats'],
     'bar out of index order' => [['bars' => [draftBarPayload(1, 0.0), draftBarPayload(0, 4.0)]], 'index'],
     'bar of no beats' => [['bars' => [draftBarPayload(0, 0.0), draftBarPayload(1, 4.0, beats: 0.0)]], 'positive number of beats'],
@@ -228,6 +230,15 @@ it('holds the draft coordinate at construction', function (array $overrides, str
     'review_order naming no bar' => [['review_order' => [0, 2]], 'review_order names bar 2'],
     'review_order naming a bar twice' => [['review_order' => [1, 1]], 'twice'],
 ]);
+
+it('refuses a change_meta entry that is not DraftChangeMetaData when constructed directly', function () {
+    $draft = ChartDraftData::from(chartDraftPayload());
+
+    expect(fn () => new ChartDraftData(
+        key: $draft->key, tempoBpm: 96.0, tempoPrior: null, meter: '4/4', pickupBeats: 1.0, downbeatMargin: 0.3,
+        changes: $draft->changes, changeMeta: [['index' => 0, 'confidence' => 0.2, 'reasons' => []]], bars: $draft->bars, reviewOrder: [],
+    ))->toThrow(InvalidArgumentException::class, 'DraftChangeMetaData');
+});
 
 it('admits a corrected draft: no change_meta, an empty review_order, re-cut bars', function () {
     // 05 E2: the worksheet parser builds a corrected ChartDraftData — the owner's changes, re-cut bars, no review.

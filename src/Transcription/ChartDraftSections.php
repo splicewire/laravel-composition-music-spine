@@ -83,9 +83,15 @@ class ChartDraftSections
         }
         $end = $at;
 
+        // Each section's last bar: the bar before the next section starts, or the draft's last bar.
+        $lastBars = [];
+        foreach ($starts as $k => $start) {
+            $lastBars[$k] = ($starts[$k + 1]->startBar ?? count($bars)) - 1;
+        }
+
         $sectionMeters = [];
         foreach ($starts as $k => $start) {
-            $last = ($starts[$k + 1]->startBar ?? count($bars)) - 1;
+            $last = $lastBars[$k];
             $first = $bars[$start->startBar]->beats;
 
             for ($b = $start->startBar + 1; $b <= $last; $b++) {
@@ -134,8 +140,7 @@ class ChartDraftSections
                 array_unshift($sectionChanges, new ChordChange(symbol: $carried->symbol, start: 0.0));
             }
 
-            $lastBar = ($starts[$k + 1]->startBar ?? count($bars)) - 1;
-            $sectionChords = array_values(array_slice($chords, $start->startBar, $lastBar - $start->startBar + 1));
+            $sectionChords = array_values(array_slice($chords, $start->startBar, $lastBars[$k] - $start->startBar + 1));
 
             $arguments = ['tag' => $start->tag, 'chords' => $sectionChords, 'roles' => [], 'changes' => $sectionChanges];
             if ($sectionMeters[$k] !== $meterInForce) {
