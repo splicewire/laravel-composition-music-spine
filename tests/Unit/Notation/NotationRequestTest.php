@@ -1,5 +1,6 @@
 <?php
 
+use Schemastud\DataSchemas\Generators\Generator;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 use Splicewire\Composition\Music\MusicIntent;
 use Splicewire\Composition\Music\Notation\NotationArrangement;
@@ -117,6 +118,31 @@ it('is the sha256 of the sorted-key JSON of every member but source', function (
 
     expect(array_keys($members))->toEqualCanonicalizing(['intent', 'title', 'sections', 'formats', 'arrangement', 'composer', 'lyricist', 'lyricBlock'])
         ->and($request->digest())->toBe(hash('sha256', json_encode($sort($members), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)));
+});
+
+it('digests a zero pickup and empty changes as their absence, so a ladder-migrated v1 intent keeps its digest', function () {
+    $absent = notationPayload();
+    unset($absent['intent']['pickup']);
+    $zero = $absent;
+    $zero['intent']['pickup'] = 0;
+    $emptyChanges = $absent;
+    $emptyChanges['intent']['sections'][1]['changes'] = [];
+
+    $digest = NotationRequest::from($absent)->digest();
+
+    expect(NotationRequest::from($zero)->digest())->toBe($digest)
+        ->and(NotationRequest::from($emptyChanges)->digest())->toBe($digest)
+        ->and(notationRequest()->digest())->not->toBe($digest); // a real pickup still counts
+});
+
+it('declares formats as a list of the four format names in its schema', function () {
+    config()->set('data-schemas.base_uri', 'https://app.splicewire.com/schemas');
+
+    $formats = app(Generator::class)
+        ->generate(new ReflectionClass(NotationRequest::class))['properties']['formats'];
+
+    expect($formats['type'])->toBe('array')
+        ->and(json_encode($formats['items']))->toContain('musicxml')->toContain('svg')->toContain('pdf')->toContain('chart');
 });
 
 it('changes the digest when one melody note changes', function () {

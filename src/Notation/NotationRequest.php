@@ -3,6 +3,7 @@
 namespace Splicewire\Composition\Music\Notation;
 
 use BackedEnum;
+use Schemastud\DataSchemas\Attributes\ArrayItems;
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -10,6 +11,7 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Transformation\TransformationContextFactory;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Composition\Music\MusicIntent;
+use Splicewire\Composition\Music\MusicSection;
 
 /**
  * Everything a notation run engraves (music-capability-lift ticket 02 Q1, Q2 amended; ticket 09). The rule
@@ -51,6 +53,7 @@ class NotationRequest extends Data
 
         #[Title('Formats')]
         #[Description('The outputs to produce: musicxml | svg | pdf | chart. Required and non-empty; no default.')]
+        #[ArrayItems(NotationFormat::class)]
         public array $formats,
 
         #[Title('Arrangement')]
@@ -97,8 +100,11 @@ class NotationRequest extends Data
     /**
      * The request's content digest: sha256 of the canonical JSON — keys sorted at every level,
      * `JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE` — of every member **except `source`** (ticket 02 Q2
-     * amended). It is taken over the hydrated Data, so an absent member digests as its default (an absent
-     * `lyricBlock` equals `false`), and over property names, so a host's output name mapper cannot move it.
+     * amended). It is taken over the hydrated Data, so an absent member with a default digests as that
+     * default (an absent `lyricBlock` equals `false`), and over property names, so a host's output name mapper
+     * cannot move it. The intent's two v2 `Optional` members are normalised to their v1 meaning first: a
+     * `pickup` of 0 is no pickup and an empty `changes` is no changes, so a v1 intent migrated to v2 (the
+     * schema ladder writes `pickup: 0`) digests as the same intent hydrated directly.
      *
      * Any change to a note, chord, syllable, label, credit, format, the arrangement or the lyric block is a
      * new digest; a change to `source` alone is not.
@@ -109,6 +115,7 @@ class NotationRequest extends Data
             TransformationContextFactory::create()->withoutPropertyNameMapping()->withoutWrapping(),
         );
         unset($payload['source']);
+        $payload['intent'] = self::withoutEmptyV2Members($payload['intent']);
 
         $precision = ini_get('serialize_precision');
         ini_set('serialize_precision', '-1');
@@ -120,6 +127,28 @@ class NotationRequest extends Data
         }
 
         return hash('sha256', $json);
+    }
+
+    /**
+     * Drop `pickup` when it is 0 and a section's `changes` when empty: each means exactly what its absence
+     * means ({@see MusicIntent::pickupBeats()}, {@see MusicSection::changeList()}).
+     *
+     * @param  array<string, mixed>  $intent
+     * @return array<string, mixed>
+     */
+    private static function withoutEmptyV2Members(array $intent): array
+    {
+        if (array_key_exists('pickup', $intent) && (float) $intent['pickup'] === 0.0) {
+            unset($intent['pickup']);
+        }
+
+        foreach ($intent['sections'] ?? [] as $i => $section) {
+            if (is_array($section) && array_key_exists('changes', $section) && $section['changes'] === []) {
+                unset($intent['sections'][$i]['changes']);
+            }
+        }
+
+        return $intent;
     }
 
     /** Sort every associative level by key; lists keep their order (order is meaning there). */
