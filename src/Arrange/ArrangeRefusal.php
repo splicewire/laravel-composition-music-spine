@@ -2,6 +2,7 @@
 
 namespace Splicewire\Composition\Music\Arrange;
 
+use InvalidArgumentException;
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Data;
@@ -10,7 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 /**
  * The Arranger's 422 answer (music-capability-lift ticket 06 Q2, I02): it will not arrange this intent, by name. A
  * refusal is a mandatory failure the platform never retries; the run fails `arranger_refused`, carrying `reason`
- * as its `refusal_reason` and `members` as its members.
+ * as its `refusal_reason` and `members` as its members. `reason` is never empty, as `refusal_reason` never is.
  *
  * {@see self::UNSUPPORTED_INTENT_MEMBERS} is the refusal an Arranger that cannot yet honour music/intent v2 gives
  * for an intent carrying `pickup` or `changes` (06 I02): it refuses by name and never drops them.
@@ -34,5 +35,9 @@ class ArrangeRefusal extends Data
         #[Title('Detail')]
         #[Description('What was refused, for a person.')]
         public string $detail,
-    ) {}
+    ) {
+        if ($reason === '') {
+            throw new InvalidArgumentException('An Arranger refusal names its reason; an empty reason is refused.');
+        }
+    }
 }

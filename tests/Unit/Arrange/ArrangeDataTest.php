@@ -150,3 +150,8 @@ it('round-trips an ArrangeRefusal naming the v2 members it cannot honour', funct
         ])
         ->and(ArrangeRefusal::from($refusal->toArray())->toArray())->toBe($refusal->toArray());
 });
+
+it('refuses an ArrangeRefusal with an empty reason, which no arranger_refused error could carry', function () {
+    expect(fn () => ArrangeRefusal::from(['reason' => '', 'members' => [], 'detail' => 'x']))
+        ->toThrow(InvalidArgumentException::class, 'reason');
+});

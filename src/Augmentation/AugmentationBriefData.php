@@ -49,7 +49,7 @@ class AugmentationBriefData extends Data
         public bool $aiListener = false,
     ) {
         if ($maxIterations < self::MIN_ITERATIONS || $maxIterations > self::MAX_ITERATIONS) {
-            throw new InvalidArgumentException("max_iterations must be 1 to 3; got {$maxIterations}.");
+            throw new InvalidArgumentException('max_iterations must be '.self::MIN_ITERATIONS.' to '.self::MAX_ITERATIONS."; got {$maxIterations}.");
         }
     }
 

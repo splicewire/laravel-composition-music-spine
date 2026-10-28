@@ -20,8 +20,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * - `members` — the refused intent members on `arranger_refused` (may be empty), the verdict's mandatory list on
  *   `mandatory_verdict` (non-empty); empty on every other code.
  *
- * `refusal_reason` is mapped per property: laravel-data 4.23 lets the host's configured input mapper (the
- * flagship's CamelCaseMapper) override a class-level `#[MapName]` (measured in build issue 03).
+ * `refusal_reason` is mapped per property (see {@see AugmentationMixData}).
  */
 #[TypeScript]
 #[Title('Augmentation error')]

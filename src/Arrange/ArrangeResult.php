@@ -14,8 +14,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * artifact is kilobytes. This Data carries the claim only; the platform checks it (the sha256, an `MThd` header,
  * a 1 MiB cap) and fails the run `arranger_invalid_result` when a check fails.
  *
- * The wire names are snake_case, mapped per property: laravel-data 4.23 lets the host's configured input mapper
- * (the flagship's CamelCaseMapper) override a class-level `#[MapName]` (measured in build issue 03).
+ * The wire names are snake_case, mapped per property (see {@see ArrangeRequest}).
  */
 #[TypeScript]
 #[Title('Arrange result')]
