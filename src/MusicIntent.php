@@ -8,6 +8,7 @@ use Schemastud\DataSchemas\Contracts\SchemaIdentity;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
+use Splicewire\Composition\Music\Support\CanonicalJson;
 
 /**
  * The platform-coined, song-agnostic **music-intent** format an upstream LLM drafts from freeform
@@ -70,6 +71,16 @@ class MusicIntent extends Data implements SchemaIdentity
     public function pickupBeats(): float
     {
         return is_float($this->pickup) ? $this->pickup : 0.0;
+    }
+
+    /**
+     * The intent's content digest: sha256 of its canonical JSON (keys sorted at every level, property names,
+     * `pickup: 0` and empty `changes` read as their absence; {@see CanonicalJson}). It is the `intent_digest` an
+     * {@see Arrange\ArrangeRequest} carries, so every caller and the platform compute it identically.
+     */
+    public function digest(): string
+    {
+        return CanonicalJson::sha256(CanonicalJson::withoutEmptyIntentV2Members(CanonicalJson::propertiesOf($this)));
     }
 
     public static function schemaName(): string

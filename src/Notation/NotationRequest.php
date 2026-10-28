@@ -2,16 +2,14 @@
 
 namespace Splicewire\Composition\Music\Notation;
 
-use BackedEnum;
 use Schemastud\DataSchemas\Attributes\ArrayItems;
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
-use Spatie\LaravelData\Support\Transformation\TransformationContextFactory;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 use Splicewire\Composition\Music\MusicIntent;
-use Splicewire\Composition\Music\MusicSection;
+use Splicewire\Composition\Music\Support\CanonicalJson;
 
 /**
  * Everything a notation run engraves (music-capability-lift ticket 02 Q1, Q2 amended; ticket 09). The rule
@@ -111,63 +109,10 @@ class NotationRequest extends Data
      */
     public function digest(): string
     {
-        $payload = $this->transform(
-            TransformationContextFactory::create()->withoutPropertyNameMapping()->withoutWrapping(),
-        );
+        $payload = CanonicalJson::propertiesOf($this);
         unset($payload['source']);
-        $payload['intent'] = self::withoutEmptyV2Members($payload['intent']);
+        $payload['intent'] = CanonicalJson::withoutEmptyIntentV2Members($payload['intent']);
 
-        $precision = ini_get('serialize_precision');
-        ini_set('serialize_precision', '-1');
-
-        try {
-            $json = json_encode(self::canonical($payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-        } finally {
-            ini_set('serialize_precision', $precision === false ? '-1' : $precision);
-        }
-
-        return hash('sha256', $json);
-    }
-
-    /**
-     * Drop `pickup` when it is 0 and a section's `changes` when empty: each means exactly what its absence
-     * means ({@see MusicIntent::pickupBeats()}, {@see MusicSection::changeList()}).
-     *
-     * @param  array<string, mixed>  $intent
-     * @return array<string, mixed>
-     */
-    private static function withoutEmptyV2Members(array $intent): array
-    {
-        if (array_key_exists('pickup', $intent) && (float) $intent['pickup'] === 0.0) {
-            unset($intent['pickup']);
-        }
-
-        foreach ($intent['sections'] ?? [] as $i => $section) {
-            if (is_array($section) && array_key_exists('changes', $section) && $section['changes'] === []) {
-                unset($intent['sections'][$i]['changes']);
-            }
-        }
-
-        return $intent;
-    }
-
-    /** Sort every associative level by key; lists keep their order (order is meaning there). */
-    private static function canonical(mixed $value): mixed
-    {
-        if ($value instanceof BackedEnum) {
-            return $value->value;
-        }
-
-        if (! is_array($value)) {
-            return $value;
-        }
-
-        $value = array_map(self::canonical(...), $value);
-
-        if (! array_is_list($value)) {
-            ksort($value, SORT_STRING);
-        }
-
-        return $value;
+        return CanonicalJson::sha256($payload);
     }
 }
