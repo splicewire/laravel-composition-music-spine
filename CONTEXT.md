@@ -47,3 +47,11 @@ _Avoid_: isolate, isolation
 
 **Separation run**:
 One separation of one recording into one stem set, the unit that is charged and reused; a six-part split builds on a two-part run.
+
+**Chart draft**:
+A take transcribed into bars with chord changes, key, tempo and meter, each bar carrying a confidence; it has no sections and is not canonical until the owner corrects it.
+_Avoid_: chart (printed from a canonical song), transcription (the capability, not its output)
+
+**Plan conformance**:
+How closely a take's sounding chords follow its plan — the intent it was generated from; it exists only where a take has a plan.
+_Avoid_: bare conformance (an intent's own structural check), accuracy
