@@ -13,8 +13,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * The separation Read op's answer for one exact run key (music-capability-lift ticket 03 Q2 amended).
  * `result` is non-null exactly when `completed`, and `error` is a non-empty string exactly when `failed`;
  * any other pairing is refused at construction. The guard is notation's amended one
- * (`NotationRunData`, spine `384ed64`): an empty error is still an error member on the wire, so it is
- * refused outside `failed` rather than read as absence.
+ * ({@see \Splicewire\Composition\Music\Notation\NotationRunData}): an empty error is still an error
+ * member on the wire, so it is refused outside `failed` rather than read as absence.
  *
  * `run_key` is mapped per property (see {@see SeparationRequest}).
  */

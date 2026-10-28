@@ -10,7 +10,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 /**
  * The separate Task's whole answer (music-capability-lift ticket 03 Q2 amended): it only acknowledges. A Task's
  * response never sees the request, so the run's state is the Read op's ({@see SeparationRunData}). It sits in
- * the spine beside notation's `NotationDispatchData` (build issue 10).
+ * the spine beside notation's `NotationDispatchData`.
  */
 #[TypeScript]
 #[Title('Separation dispatch')]

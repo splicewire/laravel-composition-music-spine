@@ -50,10 +50,6 @@ class SeparationResult extends Data
         #[Description('Seconds of audio actually separated — the metered quantity, never wall time.')]
         #[MapName('separated_seconds')]
         public float $separatedSeconds,
-        #[Title('Wall-seconds (internal)')]
-        #[Description('Optional internal telemetry. Never the billed quantity.')]
-        #[MapName('wall_seconds')]
-        public ?float $wallSeconds,
         #[Title('All silent')]
         #[Description('True exactly when every stem is silent; every relative_db is then null. Still completed.')]
         #[MapName('all_silent')]
@@ -61,6 +57,10 @@ class SeparationResult extends Data
         #[Title('Stems')]
         #[DataCollectionOf(StemData::class)]
         public array $stems,
+        #[Title('Wall-seconds (internal)')]
+        #[Description('Optional internal telemetry. Never the billed quantity.')]
+        #[MapName('wall_seconds')]
+        public ?float $wallSeconds = null,
     ) {
         $everyStemSilent = $stems !== [];
 

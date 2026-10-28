@@ -15,7 +15,7 @@ use Splicewire\Composition\Music\Separation\StemData;
  * The harness mirrors the flagship's CamelCaseMapper input mapper (tests/TestCase.php), so every
  * snake_case round trip below is measured under the host's mapper, not the package default.
  */
-function stemPayload(string $name, array $overrides = []): array
+function separationStemPayload(string $name, array $overrides = []): array
 {
     return [
         'name' => $name,
@@ -39,8 +39,8 @@ function separationResultPayload(array $overrides = []): array
         'wall_seconds' => 41.5,
         'all_silent' => false,
         'stems' => [
-            stemPayload('vocals'),
-            stemPayload('instrumental', ['rms_dbfs' => -21.0, 'relative_db' => -2.75]),
+            separationStemPayload('vocals'),
+            separationStemPayload('instrumental', ['rms_dbfs' => -21.0, 'relative_db' => -2.75]),
         ],
         ...$overrides,
     ];
@@ -52,7 +52,7 @@ function allSilentResultPayload(): array
 
     return separationResultPayload([
         'all_silent' => true,
-        'stems' => [stemPayload('vocals', $silent), stemPayload('instrumental', $silent)],
+        'stems' => [separationStemPayload('vocals', $silent), separationStemPayload('instrumental', $silent)],
     ]);
 }
 
@@ -102,7 +102,7 @@ it('digests params independently of key order, and only params', function () {
 });
 
 it('round-trips a StemData in snake_case', function () {
-    $stem = StemData::from(stemPayload('bass', ['relative_db' => -31.4]));
+    $stem = StemData::from(separationStemPayload('bass', ['relative_db' => -31.4]));
 
     expect($stem->mediaRef)->toBe('media-bass')
         ->and($stem->relativeDb)->toBe(-31.4)
@@ -124,9 +124,9 @@ it('round-trips a SeparationResult with its stems in snake_case', function () {
         ->and($result->stems[1])->toBeInstanceOf(StemData::class)
         ->and($result->stems[1]->relativeDb)->toBe(-2.75)
         ->and(array_keys($result->toArray()))->toBe([
-            'stem_set', 'separator', 'separator_version', 'params_digest', 'separated_seconds', 'wall_seconds', 'all_silent', 'stems',
+            'stem_set', 'separator', 'separator_version', 'params_digest', 'separated_seconds', 'all_silent', 'stems', 'wall_seconds',
         ])
-        ->and($result->toArray()['stems'][1])->toBe(stemPayload('instrumental', ['rms_dbfs' => -21.0, 'relative_db' => -2.75]))
+        ->and($result->toArray()['stems'][1])->toBe(separationStemPayload('instrumental', ['rms_dbfs' => -21.0, 'relative_db' => -2.75]))
         ->and(SeparationResult::from($result->toArray())->toArray())->toBe($result->toArray());
 });
 
@@ -148,8 +148,8 @@ it('keeps a measured relative_db on a silent stem in a run that is not all silen
     // E1: `relative_db` is the stem's RMS against the loudest stem in its own run; only a run with no
     // reference (every stem silent) has null values. One silent stem beside signal is still measured.
     $result = SeparationResult::from(separationResultPayload(['stems' => [
-        stemPayload('vocals'),
-        stemPayload('instrumental', ['peak_dbfs' => -70.0, 'rms_dbfs' => -88.0, 'relative_db' => -69.75, 'silent' => true]),
+        separationStemPayload('vocals'),
+        separationStemPayload('instrumental', ['peak_dbfs' => -70.0, 'rms_dbfs' => -88.0, 'relative_db' => -69.75, 'silent' => true]),
     ]]));
 
     expect($result->allSilent)->toBeFalse()
@@ -163,12 +163,12 @@ it('refuses all_silent that disagrees with its stems', function (array $override
 })->with([
     'all_silent true over a stem with signal' => [['all_silent' => true]],
     'all_silent false over every stem silent' => [['stems' => [
-        stemPayload('vocals', ['relative_db' => null, 'silent' => true]),
-        stemPayload('instrumental', ['relative_db' => null, 'silent' => true]),
+        separationStemPayload('vocals', ['relative_db' => null, 'silent' => true]),
+        separationStemPayload('instrumental', ['relative_db' => null, 'silent' => true]),
     ]]],
     'all_silent true with a measured relative_db' => [['all_silent' => true, 'stems' => [
-        stemPayload('vocals', ['relative_db' => null, 'silent' => true]),
-        stemPayload('instrumental', ['relative_db' => -3.0, 'silent' => true]),
+        separationStemPayload('vocals', ['relative_db' => null, 'silent' => true]),
+        separationStemPayload('instrumental', ['relative_db' => -3.0, 'silent' => true]),
     ]]],
     'all_silent true with no stems' => [['all_silent' => true, 'stems' => []]],
 ]);
