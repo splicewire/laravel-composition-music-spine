@@ -40,3 +40,10 @@ _Avoid_: lyric timing
 **Lyric block**:
 The song's lyrics printed as verse text after the score's music; distinct from the syllables under the notes and from the chart.
 _Avoid_: lyric sheet, lyric page
+
+**Stem set**:
+A named way of splitting a mix into stems — vocals and instrumental, or six parts — chosen by the caller.
+_Avoid_: isolate, isolation
+
+**Separation run**:
+One separation of one recording into one stem set, the unit that is charged and reused; a six-part split builds on a two-part run.
