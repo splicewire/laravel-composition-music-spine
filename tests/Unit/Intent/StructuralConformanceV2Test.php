@@ -5,8 +5,9 @@ use Splicewire\Composition\Music\MusicIntent;
 
 /**
  * The v2 mandatory floor (music-capability-lift build/03; ticket 02 Q1): the downbeat-consistency check
- * between `chords` and `changes`, the pickup's melody lower bound, the lead-in's one-bar lower bound, and the
- * refusal of a negative `ChordChange.start` until build/26 admits the pickup chord.
+ * between `chords` and `changes`, the pickup's melody lower bound, the lead-in's one-bar lower bound, and (build/26,
+ * ticket 05 E3) the **pickup chord**: a section-0 `ChordChange` with `-pickup ≤ start < 0`; any other negative start
+ * still refuses.
  */
 function v2Intent(array $sections, array $top = []): MusicIntent
 {
@@ -98,13 +99,53 @@ it('fails changes out of order, and a change past the section\'s last bar', func
         ->and(implode(' ', mandatoryOf($past)))->toContain('past the section');
 });
 
-it('refuses a ChordChange with a negative start (until build/26 admits the pickup chord)', function () {
+it('admits a section-0 pickup chord at -pickup and refuses one a beat below it', function () {
+    $section = fn (float $start) => [[
+        'tag' => 'VERSE', 'chords' => ['F'],
+        'changes' => [['symbol' => 'C', 'start' => $start], ['symbol' => 'F', 'start' => 0.0]],
+    ]];
+
+    $at = mandatoryOf(v2Intent($section(-2.0), ['pickup' => 2.0]));
+    $below = mandatoryOf(v2Intent($section(-3.0), ['pickup' => 2.0]));
+
+    expect($at)->toBe([])
+        ->and($below)->toHaveCount(1)
+        ->and($below[0])->toContain('Section 0')->toContain('"C"')->toContain('-3')->toContain('pickup');
+});
+
+it('admits a pickup chord inside the pickup that still sounds at bar 0\'s downbeat', function () {
+    $sounding = v2Intent([[
+        'tag' => 'VERSE', 'chords' => ['C', 'F'],
+        'changes' => [['symbol' => 'C', 'start' => -1.0], ['symbol' => 'F', 'start' => 4.0]],
+    ]], ['pickup' => 2.0]);
+
+    $disagrees = v2Intent([[
+        'tag' => 'VERSE', 'chords' => ['F', 'F'],
+        'changes' => [['symbol' => 'C', 'start' => -1.0], ['symbol' => 'F', 'start' => 4.0]],
+    ]], ['pickup' => 2.0]);
+
+    expect(mandatoryOf($sounding))->toBe([])
+        ->and(implode(' ', mandatoryOf($disagrees)))->toContain('bar 0')->toContain('"C"');
+});
+
+it('refuses a negative chord change in section 0 when the intent has no pickup', function () {
     $intent = v2Intent([[
         'tag' => 'VERSE', 'chords' => ['F'],
         'changes' => [['symbol' => 'C', 'start' => -1.0], ['symbol' => 'F', 'start' => 0.0]],
-    ]], ['pickup' => 1.0]);
+    ]]);
 
-    expect(implode(' ', mandatoryOf($intent)))->toContain('negative');
+    expect(mandatoryOf($intent))->toHaveCount(1)
+        ->and(mandatoryOf($intent)[0])->toContain('Section 0')->toContain('negative');
+});
+
+it('refuses a negative chord change in a later section, even inside the pickup\'s range', function () {
+    $intent = v2Intent([
+        ['tag' => 'INTRO', 'chords' => ['F']],
+        ['tag' => 'VERSE', 'chords' => ['F'], 'changes' => [['symbol' => 'C', 'start' => -1.0], ['symbol' => 'F', 'start' => 0.0]]],
+    ], ['pickup' => 2.0]);
+
+    expect(mandatoryOf($intent))->toHaveCount(1)
+        ->and(mandatoryOf($intent)[0])->toContain('Section 1')->toContain('negative');
 });
 
 it('passes a section-0 melody note at -pickup and refuses one below it', function () {

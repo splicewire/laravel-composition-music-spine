@@ -22,9 +22,10 @@ use Splicewire\Composition\Music\MusicSection;
  *  - melody timing: duration > 0, and start no earlier than the section allows — `-pickup` in section 0
  *    (0 without a pickup), one bar of the previous section's meter in a later section (a lead-in);
  *  - pickup (v2): not negative;
- *  - chord changes (v2): `start` ≥ 0 (until build/26 admits the pickup chord), strictly increasing, inside
- *    the section, a non-empty symbol, and **downbeat consistency** — `chords[i]` equals the change sounding
- *    at bar *i*'s downbeat (music-capability-lift ticket 02 Q1).
+ *  - chord changes (v2): `start` ≥ 0, except the **pickup chord** — a section-0 change with `-pickup ≤ start < 0`
+ *    (build/26, ticket 05 E3) — strictly increasing, inside the section, a non-empty symbol, and **downbeat
+ *    consistency** — `chords[i]` equals the change sounding at bar *i*'s downbeat (music-capability-lift ticket
+ *    02 Q1). A pickup chord still sounding at bar 0's downbeat is `chords[0]`.
  *
  * Bars are measured in beats (quarter notes, as {@see MelodyNote}) in the section's effective meter: its own
  * override, else the latest earlier override, else the song meter ("from this section onward").
@@ -76,23 +77,18 @@ class StructuralMusicConformance implements MusicConformance
             $pickup = 0.0;
         }
 
-        $meter = $intent->meter;
-        $previousBar = null;
+        $bars = self::sectionBars($intent);
+        $floors = self::earliestStarts($intent);
 
         foreach ($intent->sections as $i => $section) {
             if (! $section instanceof MusicSection) {
                 continue;
             }
             $where = "Section {$i} ({$section->tag})";
+            $bar = $bars[$i];
+            $floor = $floors[$i];
 
-            if (is_string($section->meter)) {
-                $meter = $section->meter;
-            }
-            $bar = self::barBeats($meter);
-            $floor = $i === 0 ? -$pickup : -($previousBar ?? 0.0);
-            $previousBar = $bar;
-
-            $this->checkChanges($where, $section, $bar, $mandatory);
+            $this->checkChanges($where, $section, $bar, $i === 0 ? -$pickup : 0.0, $mandatory);
 
             if (count($section->chords) < 1) {
                 $mandatory[] = "{$where} has no chords (a section must be at least one bar).";
@@ -134,10 +130,12 @@ class StructuralMusicConformance implements MusicConformance
     /**
      * The v2 chord-change floor for one section. `$bar` is the section's bar length in beats, or null when
      * its effective meter does not parse (that is already a meter violation; bar positions are then unknown).
+     * `$earliest` is the earliest start a change may have: `-pickup` in section 0 (the pickup chord, build/26),
+     * 0 everywhere else — a change never leads in from the previous section the way a melody note may.
      *
      * @param  array<int, string>  $mandatory
      */
-    private function checkChanges(string $where, MusicSection $section, ?float $bar, array &$mandatory): void
+    private function checkChanges(string $where, MusicSection $section, ?float $bar, float $earliest, array &$mandatory): void
     {
         $changes = $section->changeList();
         if ($changes === []) {
@@ -159,8 +157,10 @@ class StructuralMusicConformance implements MusicConformance
 
                 continue;
             }
-            if ($change->start < 0) {
-                $mandatory[] = "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is negative; a change sounds from the section's first downbeat onward.";
+            if ($change->start < $earliest - self::EPSILON) {
+                $mandatory[] = $earliest === 0.0
+                    ? "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is negative; a change sounds from the section's first downbeat onward, and only section 0's pickup admits one before it."
+                    : "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is before {$earliest}, the start of the pickup.";
             }
             if ($previous !== null && $change->start <= $previous + self::EPSILON) {
                 $mandatory[] = "{$where} chord change {$c} (\"{$change->symbol}\") start {$change->start} is not after the previous change; changes must be in strictly increasing start order.";
@@ -192,6 +192,51 @@ class StructuralMusicConformance implements MusicConformance
                 $mandatory[] = "{$where} bar {$b}: chords[{$b}] is \"{$chord}\" but the change sounding at its downbeat is \"{$sounding}\".";
             }
         }
+    }
+
+    /**
+     * Each section's bar length in beats in its effective meter — its own override, else the latest earlier one,
+     * else the song meter — or null where that meter does not parse. Keyed as `$intent->sections`.
+     *
+     * @return array<int, ?float>
+     */
+    public static function sectionBars(MusicIntent $intent): array
+    {
+        $meter = $intent->meter;
+        $bars = [];
+        foreach ($intent->sections as $i => $section) {
+            if ($section instanceof MusicSection && is_string($section->meter)) {
+                $meter = $section->meter;
+            }
+            $bars[$i] = self::barBeats($meter);
+        }
+
+        return $bars;
+    }
+
+    /**
+     * The earliest start, in beats from its section's start, a melody note — or a timed syllable onset (build/26,
+     * ticket 05 E3) — may have in each section: `-pickup` in section 0 (0 without a pickup), and one bar of the
+     * previous section's meter in a later section (a lead-in sounding in that section's last bar). An invalid
+     * pickup counts as none. Keyed as `$intent->sections`.
+     *
+     * @return array<int, float>
+     */
+    public static function earliestStarts(MusicIntent $intent): array
+    {
+        $pickup = $intent->pickupBeats();
+        $pickup = is_finite($pickup) && $pickup > 0 ? $pickup : 0.0;
+
+        $floors = [];
+        $previousBar = null;
+        $first = true;
+        foreach (self::sectionBars($intent) as $i => $bar) {
+            $floors[$i] = $first ? -$pickup : -($previousBar ?? 0.0);
+            $previousBar = $bar;
+            $first = false;
+        }
+
+        return $floors;
     }
 
     /** A bar's length in beats (quarter notes) for an `n/d` meter, or null when the meter does not parse. */

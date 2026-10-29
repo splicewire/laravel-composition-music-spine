@@ -13,6 +13,13 @@ use InvalidArgumentException;
  * - `sections_mismatch` — `sections` does not align one-to-one with the intent's sections.
  * - `lyric_block_without_pages` — `lyricBlock` is true but no paged format (`svg`, `pdf`) is asked for.
  * - `lyric_block_empty` — `lyricBlock` is true but no section has lyric `lines`.
+ *
+ * Syllables (build/26, ticket 05 E3, Q4 amended; {@see NotationSyllable}):
+ * - `syllables_out_of_order` — a section's timed syllables do not start in strictly increasing order.
+ * - `syllable_too_early` — a timed syllable starts before its section allows: `-pickup` in section 0, one bar of
+ *   the previous section's meter in a later one.
+ * - `syllable_untimed` — a syllable in a section with melody has no `start`.
+ * - `syllable_without_note` — a syllable in a section with melody has no melody note starting at its onset.
  */
 class NotationRequestRefused extends InvalidArgumentException
 {
@@ -23,6 +30,14 @@ class NotationRequestRefused extends InvalidArgumentException
     public const LYRIC_BLOCK_WITHOUT_PAGES = 'lyric_block_without_pages';
 
     public const LYRIC_BLOCK_EMPTY = 'lyric_block_empty';
+
+    public const SYLLABLES_OUT_OF_ORDER = 'syllables_out_of_order';
+
+    public const SYLLABLE_TOO_EARLY = 'syllable_too_early';
+
+    public const SYLLABLE_UNTIMED = 'syllable_untimed';
+
+    public const SYLLABLE_WITHOUT_NOTE = 'syllable_without_note';
 
     public function __construct(public readonly string $reason, string $detail)
     {

@@ -8,7 +8,10 @@ use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
+use Splicewire\Composition\Music\Conformance\StructuralMusicConformance;
+use Splicewire\Composition\Music\MelodyNote;
 use Splicewire\Composition\Music\MusicIntent;
+use Splicewire\Composition\Music\MusicSection;
 use Splicewire\Composition\Music\Support\CanonicalJson;
 
 /**
@@ -19,7 +22,13 @@ use Splicewire\Composition\Music\Support\CanonicalJson;
  * never read off the composition.
  *
  * Refuses at construction, by name ({@see NotationRequestRefused}): an empty `formats`, `sections` that do not
- * align with the intent's, and a lyric block that has no paged format or no lines.
+ * align with the intent's, syllables that break the stage-2 contract ({@see NotationSyllable}; build/26), and a lyric
+ * block that has no paged format or no lines.
+ *
+ * **Underlay per section** (build/26, ticket 05 Q4 amended). A section whose intent section has melody underlays its
+ * syllables: each is timed and a melody note starts at its onset — in the score's coordinate, so a lead-in syllable
+ * may sit on a note its previous section carries, as the engraving reads it. A section without melody underlays
+ * nothing; its syllables serve the chart, and only those under a chord change carry a `start`.
  *
  * {@see self::digest()} is the request half of the notation run key, computed identically by every caller
  * and by the platform because it lives here.
@@ -28,6 +37,9 @@ use Splicewire\Composition\Music\Support\CanonicalJson;
 #[Title('Notation request')]
 class NotationRequest extends Data
 {
+    /** A syllable sits on a note when their onsets agree within a millionth of a beat, as the engraving matches them. */
+    private const ONSET_EPSILON = 1e-6;
+
     /**
      * @param  array<int, NotationSection>  $sections
      * @param  array<int, NotationFormat>  $formats
@@ -82,6 +94,8 @@ class NotationRequest extends Data
             throw new NotationRequestRefused(NotationRequestRefused::SECTIONS_MISMATCH, 'sections has '.count($sections)." entries; the intent has {$expected}.");
         }
 
+        self::checkSyllables($intent, $sections);
+
         if ($lyricBlock) {
             $paged = array_filter($this->formats, static fn (NotationFormat $format): bool => $format->isPaged());
             if ($paged === []) {
@@ -93,6 +107,112 @@ class NotationRequest extends Data
                 throw new NotationRequestRefused(NotationRequestRefused::LYRIC_BLOCK_EMPTY, 'no section has lyric lines to print.');
             }
         }
+    }
+
+    /**
+     * The stage-2 syllable contract, section by section (build/26): order, then each timed syllable's floor, then the
+     * underlay of a section with melody.
+     *
+     * @param  array<int, NotationSection>  $sections  aligned with the intent's sections
+     */
+    private static function checkSyllables(MusicIntent $intent, array $sections): void
+    {
+        $intentSections = array_values($intent->sections);
+        $floors = array_values(StructuralMusicConformance::earliestStarts($intent));
+        $onsets = self::melodyOnsets($intentSections, array_values(StructuralMusicConformance::sectionBars($intent)));
+
+        foreach (array_values($sections) as $k => $section) {
+            if (! $section instanceof NotationSection || $section->syllables === []) {
+                continue;
+            }
+            $intentSection = $intentSections[$k];
+            $withMelody = $intentSection instanceof MusicSection && is_array($intentSection->melody) && $intentSection->melody !== [];
+
+            $previous = null;
+            foreach (array_values($section->syllables) as $s => $syllable) {
+                if ($syllable->start === null) {
+                    if ($withMelody) {
+                        throw new NotationRequestRefused(NotationRequestRefused::SYLLABLE_UNTIMED,
+                            "section {$k} syllable {$s} (\"{$syllable->text}\") has no start; a section with melody underlays every syllable on a note.");
+                    }
+
+                    continue;
+                }
+
+                if ($previous !== null && $syllable->start <= $previous + self::ONSET_EPSILON) {
+                    throw new NotationRequestRefused(NotationRequestRefused::SYLLABLES_OUT_OF_ORDER,
+                        "section {$k} syllable {$s} (\"{$syllable->text}\") starts at {$syllable->start}, not after the previous timed syllable at {$previous}; syllables are the section's units in order.");
+                }
+                $previous = $syllable->start;
+
+                if ($syllable->start < $floors[$k] - self::ONSET_EPSILON) {
+                    throw new NotationRequestRefused(NotationRequestRefused::SYLLABLE_TOO_EARLY,
+                        "section {$k} syllable {$s} (\"{$syllable->text}\") starts at {$syllable->start}, before {$floors[$k]}, the earliest this section allows.");
+                }
+
+                if ($withMelody && ! self::hasNoteAt($onsets, $k, $syllable->start)) {
+                    throw new NotationRequestRefused(NotationRequestRefused::SYLLABLE_WITHOUT_NOTE,
+                        "section {$k} syllable {$s} (\"{$syllable->text}\") at beat {$syllable->start} has no melody note starting there.");
+                }
+            }
+        }
+    }
+
+    /**
+     * Every melody note's onset as a score beat — its section's origin plus its start, section 0's origin being its
+     * first downbeat — and each section's origin. An origin after a section whose bar length is unknown (its meter does
+     * not parse) is null; a note there is matched in its own section only.
+     *
+     * @param  list<mixed>  $sections
+     * @param  list<?float>  $bars
+     * @return array{notes: list<array{section: int, start: float}>, origins: list<?float>}
+     */
+    private static function melodyOnsets(array $sections, array $bars): array
+    {
+        $origins = [];
+        $origin = 0.0;
+        foreach ($sections as $k => $section) {
+            $origins[$k] = $origin;
+            $origin = $origin !== null && $section instanceof MusicSection && $bars[$k] !== null
+                ? $origin + count($section->chords) * $bars[$k]
+                : null;
+        }
+
+        $notes = [];
+        foreach ($sections as $k => $section) {
+            if (! $section instanceof MusicSection || ! is_array($section->melody)) {
+                continue;
+            }
+            foreach ($section->melody as $note) {
+                if ($note instanceof MelodyNote) {
+                    $notes[] = ['section' => $k, 'start' => $note->start];
+                }
+            }
+        }
+
+        return ['notes' => $notes, 'origins' => $origins];
+    }
+
+    /**
+     * Whether a melody note starts at a section's beat: one of its own notes there, or any note at the same score beat.
+     *
+     * @param  array{notes: list<array{section: int, start: float}>, origins: list<?float>}  $onsets
+     */
+    private static function hasNoteAt(array $onsets, int $section, float $start): bool
+    {
+        $origin = $onsets['origins'][$section];
+
+        foreach ($onsets['notes'] as $note) {
+            if ($note['section'] === $section && abs($note['start'] - $start) < self::ONSET_EPSILON) {
+                return true;
+            }
+            $noteOrigin = $onsets['origins'][$note['section']];
+            if ($origin !== null && $noteOrigin !== null && abs($noteOrigin + $note['start'] - ($origin + $start)) < self::ONSET_EPSILON) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

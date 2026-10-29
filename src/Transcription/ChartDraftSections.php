@@ -18,14 +18,15 @@ use Splicewire\Composition\Music\MusicSection;
  *    bar, so a meter change at a section start shifts every later origin.
  * 2. **Changes.** A draft change at `s` with `O_k ≤ s < O_{k+1}` becomes `ChordChange{symbol, s − O_k}` in section
  *    *k*. A chord still sounding from the previous section is restated at the section's beat 0, so every section
- *    carries the change sounding at its own first downbeat.
+ *    carries the change sounding at its own first downbeat (in section 0, a pickup chord may be that change).
  * 3. **`chords[]`.** Each bar's chord is the last change at or before its downbeat, so 02's downbeat floor
  *    ({@see StructuralMusicConformance}) holds by construction.
  * 4. **Meter.** A section's meter is its first bar's; a bar inside the section of another length refuses by name.
  *    The draft's meter is the song meter; a section whose meter differs from the one in force carries it as its
  *    override ("from this section onward").
- * 5. **Pickup.** {@see self::$pickup} is the draft's `pickup_beats`. A change in the pickup (`start` < 0) has no v2
- *    place until issue 26, so it refuses by name and is listed, never shifted to beat 0.
+ * 5. **Pickup.** {@see self::$pickup} is the draft's `pickup_beats`. A change in the pickup (`-pickup_beats ≤ start
+ *    < 0`) is a **pickup chord** (build/26, ticket 05 E3): it goes to section 0 at its negative start, never shifted
+ *    to beat 0. A change before the pickup refuses by name and is listed.
  * 6. **Confidence** (`change_meta`, bar confidence and reasons) stays on the draft; nothing here carries it.
  *
  * Every refusal is a {@see ChartDraftSectionsRefused} with a stable reason.
@@ -72,7 +73,7 @@ class ChartDraftSections
         $changes = array_values($draft->changes);
 
         self::checkSectioning($starts, count($bars));
-        self::refusePickupChords($changes);
+        self::refuseChangesBeforePickup($changes, $draft->pickupBeats);
 
         // Downbeats in draft beats, accumulated per bar (04 Q2 step 1).
         $downbeats = [];
@@ -125,10 +126,12 @@ class ChartDraftSections
         foreach ($starts as $k => $start) {
             $origin = $downbeats[$start->startBar];
             $next = isset($starts[$k + 1]) ? $downbeats[$starts[$k + 1]->startBar] : $end;
+            // Section 0 opens at the pickup: its changes include the pickup chords, at their negative starts.
+            $from = $k === 0 ? -$draft->pickupBeats : $origin;
 
             $sectionChanges = [];
             foreach ($changes as $change) {
-                if ($change->start >= $origin - self::EPSILON && $change->start < $next - self::EPSILON) {
+                if ($change->start >= $from - self::EPSILON && $change->start < $next - self::EPSILON) {
                     $relative = $change->start - $origin;
                     $sectionChanges[] = new ChordChange(symbol: $change->symbol, start: abs($relative) < self::EPSILON ? 0.0 : $relative);
                 }
@@ -182,21 +185,24 @@ class ChartDraftSections
     }
 
     /**
+     * A change in the pickup is a pickup chord; one before it has no place. {@see ChartDraftData} refuses it at
+     * construction, and this holds the rule again for a draft whose members changed after it.
+     *
      * @param  list<ChordChange>  $changes
      */
-    private static function refusePickupChords(array $changes): void
+    private static function refuseChangesBeforePickup(array $changes, float $pickupBeats): void
     {
-        $pickupBorne = array_filter($changes, static fn (ChordChange $c): bool => $c->start < -self::EPSILON);
+        $early = array_filter($changes, static fn (ChordChange $c): bool => $c->start < -$pickupBeats - self::EPSILON);
 
-        if ($pickupBorne !== []) {
+        if ($early !== []) {
             $named = implode(', ', array_map(
                 static fn (int $i, ChordChange $c): string => "change {$i} \"{$c->symbol}\" at {$c->start}",
-                array_keys($pickupBorne), $pickupBorne,
+                array_keys($early), $early,
             ));
 
-            throw new ChartDraftSectionsRefused(ChartDraftSectionsRefused::PICKUP_CHORD,
-                "{$named} sounds in the pickup, which has no place for a chord until issue 26; it is not moved to beat 0.",
-                $pickupBorne);
+            throw new ChartDraftSectionsRefused(ChartDraftSectionsRefused::CHANGE_BEFORE_PICKUP,
+                "{$named} sounds before the pickup, which starts at -{$pickupBeats}; it is not moved.",
+                $early);
         }
     }
 

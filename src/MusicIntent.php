@@ -63,7 +63,7 @@ class MusicIntent extends Data implements SchemaIdentity
         public int|Optional $seed = new Optional,
 
         #[Title('Pickup (beats)')]
-        #[Description('Optional (v2). Beats before bar 1 of section 0 (an anacrusis). Section 0 melody may then start as early as -pickup. Omit or 0 → no pickup.')]
+        #[Description('Optional (v2). Beats before bar 1 of section 0 (an anacrusis). Section 0 melody and chord changes may then start as early as -pickup. Omit or 0 → no pickup.')]
         public float|Optional $pickup = new Optional,
     ) {}
 

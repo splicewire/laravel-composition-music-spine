@@ -153,24 +153,40 @@ it('derives chords[i] from the change sounding at each downbeat, passing the dow
         ->and($sectioned->pickup)->toBe(1.0);
 });
 
-it('refuses a chord change in the pickup by name and lists it, never shifting it to beat 0', function () {
+it('places a draft change in the pickup in section 0 at its negative start, never shifting it to beat 0', function () {
     $draft = sectionsDraft([4, 4], [['D', -1], ['C', 0], ['G', 4]], pickup: 2.0);
+
+    $sectioned = ChartDraftSections::apply($draft, draftSectioning([['VERSE', 'Verse', 0]]));
+    $intent = new MusicIntent(key: $draft->key, sections: $sectioned->sections, tempo: 96, meter: $sectioned->meter, pickup: $sectioned->pickup);
+
+    expect(sectionChangePairs($sectioned->sections[0]))->toBe([['D', -1.0], ['C', 0.0], ['G', 4.0]])
+        ->and($sectioned->sections[0]->chords)->toBe(['C', 'G'])
+        ->and($sectioned->pickup)->toBe(2.0)
+        ->and((new StructuralMusicConformance)->check($intent)->mandatory)->toBe([]);
+});
+
+it('places every pickup change in section 0 only, and a pickup chord still sounding at the downbeat is chords[0]', function () {
+    $draft = sectionsDraft([4, 4], [['D', -2], ['A7', -1], ['G', 2], ['C', 4]], pickup: 2.0);
+
+    $sectioned = ChartDraftSections::apply($draft, draftSectioning([['INTRO', 'Intro', 0], ['VERSE', 'Verse', 1]]));
+    $intent = new MusicIntent(key: $draft->key, sections: $sectioned->sections, tempo: 96, meter: $sectioned->meter, pickup: $sectioned->pickup);
+
+    expect(sectionChangePairs($sectioned->sections[0]))->toBe([['D', -2.0], ['A7', -1.0], ['G', 2.0]])
+        ->and($sectioned->sections[0]->chords)->toBe(['A7'])
+        ->and(sectionChangePairs($sectioned->sections[1]))->toBe([['C', 0.0]])
+        ->and((new StructuralMusicConformance)->check($intent)->mandatory)->toBe([]);
+});
+
+it('still refuses by name, and lists, a change before the pickup', function () {
+    $draft = sectionsDraft([4, 4], [['D', -2], ['C', 0]], pickup: 2.0);
+    // ChartDraftData refuses this at construction; apply() holds the rule on its own for a draft changed after it.
+    $draft->pickupBeats = 1.0;
 
     $refused = sectionsRefusalOf(fn () => ChartDraftSections::apply($draft, draftSectioning([['VERSE', 'Verse', 0]])));
 
-    expect($refused->reason)->toBe(ChartDraftSectionsRefused::PICKUP_CHORD)
-        ->and($refused->getMessage())->toContain('pickup_chord')->toContain('"D"')
-        ->and(array_keys($refused->changes))->toBe([0])
-        ->and($refused->changes[0]->symbol)->toBe('D')
-        ->and($refused->changes[0]->start)->toBe(-1.0);
-});
-
-it('lists every pickup-borne change with its draft index', function () {
-    $draft = sectionsDraft([4], [['D', -2], ['A7', -1], ['G', 0]], pickup: 2.0);
-
-    $refused = sectionsRefusalOf(fn () => ChartDraftSections::apply($draft, draftSectioning([['INTRO', 'Intro', 0]])));
-
-    expect(array_map(fn (ChordChange $c) => [$c->symbol, $c->start], $refused->changes))->toBe([0 => ['D', -2.0], 1 => ['A7', -1.0]]);
+    expect($refused->reason)->toBe(ChartDraftSectionsRefused::CHANGE_BEFORE_PICKUP)
+        ->and($refused->getMessage())->toContain('change_before_pickup')->toContain('"D"')->toContain('-1')
+        ->and(array_map(fn (ChordChange $c) => [$c->symbol, $c->start], $refused->changes))->toBe([0 => ['D', -2.0]]);
 });
 
 it('carries only v2 section members onto the result — no confidence, no change_meta', function () {

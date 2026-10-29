@@ -31,10 +31,10 @@ Distinct from wall/CPU-seconds, which is internal cost telemetry, never the tena
 _Avoid_: render minutes, compute seconds (ambiguous with wall time).
 
 **Chord change**:
-A chord and the beat in its section where it starts to sound; a bar's chord is the change sounding at its downbeat.
+A chord and the beat in its section where it starts to sound; a bar's chord is the change sounding at its downbeat. A chord sounding in the pickup, before the first bar, is a change too.
 
 **Syllable onset**:
-The beat in its section where a lyric syllable is sung. Lyrics belong to what is printed, never to the intent.
+The beat in its section where a lyric syllable is sung. Lyrics belong to what is printed, never to the intent. In a section without melody, only the syllables under a chord change have one.
 _Avoid_: lyric timing
 
 **Lyric block**:

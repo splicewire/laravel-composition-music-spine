@@ -11,8 +11,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
 /**
  * What is printed for one section of the request's intent, aligned by index (music-capability-lift ticket 02
- * Q1): the owner's heading (`label`, `direction`), the lyric `lines`, optional timed `syllables`, and inline
- * `cues`. A section's `tag` is an energy tag, not a label; the label is the owner's own heading.
+ * Q1): the owner's heading (`label`, `direction`), the lyric `lines`, optional `syllables` (the section's ordered
+ * units; {@see NotationSyllable} for when each is timed), and inline `cues`. A section's `tag` is an energy tag, not a label; the label is the owner's own heading.
  */
 #[TypeScript]
 #[Title('Notation section')]
@@ -35,7 +35,7 @@ class NotationSection extends Data
         #[ArrayItems('string')]
         public array $lines = [],
         #[Title('Syllables')]
-        #[Description('Optional timed syllables (syllable onsets) for underlay and chord anchoring.')]
+        #[Description('Optional: the section\'s syllables in order, for underlay and chord anchoring. With melody every one is timed on a note; without melody only those under a chord change carry a start.')]
         #[DataCollectionOf(NotationSyllable::class)]
         public array $syllables = [],
         #[Title('Cues')]

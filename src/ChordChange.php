@@ -12,8 +12,9 @@ use Spatie\LaravelData\Data;
  * chord sounding at each bar's downbeat, and {@see Conformance\StructuralMusicConformance} holds the two
  * consistent. The symbol prints as authored.
  *
- * `start` is in beats (quarter notes, as {@see MelodyNote}) from the section start, and is never negative
- * until build/26 admits the pickup chord.
+ * `start` is in beats (quarter notes, as {@see MelodyNote}) from the section start. It is negative only for the
+ * **pickup chord** (build/26, ticket 05 E3): a change in section 0 with `-pickup ≤ start < 0`, sounding before the
+ * first bar. Everywhere else a change starts at or after its section's first downbeat.
  *
  * A {@see Transcription\ChartDraftData} reuses this class unchanged in its own **draft coordinate**: `start` in
  * beats from draft bar 0's downbeat, negative in the pickup. {@see Transcription\ChartDraftSections::apply()}
@@ -27,7 +28,7 @@ class ChordChange extends Data
         #[Description('The chord symbol, as authored: "Bb", "Dm7", "C/E".')]
         public string $symbol,
         #[Title('Start (beats)')]
-        #[Description('Beat offset from the section start where this chord starts to sound; 0.0 = the first downbeat.')]
+        #[Description('Beat offset from the section start where this chord starts to sound; 0.0 = the first downbeat. Negative only in section 0, for a chord sounding in the pickup (down to -pickup).')]
         public float $start,
     ) {}
 }
