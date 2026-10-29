@@ -15,8 +15,9 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * **Stage 2** (build/26, ticket 05 E3, Q4 amended). A section's syllables are its complete ordered list of units, cut
  * at chord columns (a word cut by a chord is two units, the first with `hyphen`). `start` follows the melody's
  * negative-start rule: down to `-pickup` in section 0, and down to one bar of the previous section in a later one
- * (a lead-in). In a section **without melody** only a unit under a chord change has a `start` — that chord's onset —
- * and the others carry `null`; nothing is underlaid. In a section **with melody** every unit is timed and sits on a
+ * (a lead-in). In a section **without melody** only a unit under a chord change has a `start` — that chord's onset,
+ * a change of its own section or, for a lead-in, of the previous one — and the others carry `null`; nothing is
+ * underlaid. In a section **with melody** every unit is timed and sits on a
  * note. {@see NotationRequest} refuses by name what breaks either rule.
  */
 #[TypeScript]

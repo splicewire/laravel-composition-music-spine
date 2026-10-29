@@ -20,6 +20,8 @@ use InvalidArgumentException;
  *   the previous section's meter in a later one.
  * - `syllable_untimed` — a syllable in a section with melody has no `start`.
  * - `syllable_without_note` — a syllable in a section with melody has no melody note starting at its onset.
+ * - `syllable_off_chord` — a timed syllable in a section without melody sits under no chord change: none starts at its
+ *   onset in its own section or, for a lead-in, in the previous one (orchestrator reading R4, from 05 Q4).
  */
 class NotationRequestRefused extends InvalidArgumentException
 {
@@ -38,6 +40,8 @@ class NotationRequestRefused extends InvalidArgumentException
     public const SYLLABLE_UNTIMED = 'syllable_untimed';
 
     public const SYLLABLE_WITHOUT_NOTE = 'syllable_without_note';
+
+    public const SYLLABLE_OFF_CHORD = 'syllable_off_chord';
 
     public function __construct(public readonly string $reason, string $detail)
     {

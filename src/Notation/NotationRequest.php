@@ -28,7 +28,9 @@ use Splicewire\Composition\Music\Support\CanonicalJson;
  * **Underlay per section** (build/26, ticket 05 Q4 amended). A section whose intent section has melody underlays its
  * syllables: each is timed and a melody note starts at its onset — in the score's coordinate, so a lead-in syllable
  * may sit on a note its previous section carries, as the engraving reads it. A section without melody underlays
- * nothing; its syllables serve the chart, and only those under a chord change carry a `start`.
+ * nothing; its syllables serve the chart, and only those under a chord change carry a `start`: each timed one starts
+ * where a change of its own section does or, as a lead-in, one of the previous section (orchestrator reading R4). A
+ * section without `changes` has its v1 changes, one per bar at each downbeat.
  *
  * {@see self::digest()} is the request half of the notation run key, computed identically by every caller
  * and by the platform because it lives here.
@@ -110,8 +112,8 @@ class NotationRequest extends Data
     }
 
     /**
-     * The stage-2 syllable contract, section by section (build/26): order, then each timed syllable's floor, then the
-     * underlay of a section with melody.
+     * The stage-2 syllable contract, section by section (build/26): order, then each timed syllable's floor, then its
+     * anchor — a melody note in a section with melody, a chord change in a section without (R4).
      *
      * @param  array<int, NotationSection>  $sections  aligned with the intent's sections
      */
@@ -119,7 +121,7 @@ class NotationRequest extends Data
     {
         $intentSections = array_values($intent->sections);
         $floors = array_values(StructuralMusicConformance::earliestStarts($intent));
-        $onsets = self::melodyOnsets($intentSections, array_values(StructuralMusicConformance::sectionBars($intent)));
+        $onsets = self::onsets($intentSections, array_values(StructuralMusicConformance::sectionBars($intent)));
 
         foreach (array_values($sections) as $k => $section) {
             if (! $section instanceof NotationSection || $section->syllables === []) {
@@ -150,64 +152,87 @@ class NotationRequest extends Data
                         "section {$k} syllable {$s} (\"{$syllable->text}\") starts at {$syllable->start}, before {$floors[$k]}, the earliest this section allows.");
                 }
 
-                if ($withMelody && ! self::hasNoteAt($onsets, $k, $syllable->start)) {
+                if ($withMelody && ! self::startsAt($onsets['notes'], $onsets['origins'], $k, $syllable->start)) {
                     throw new NotationRequestRefused(NotationRequestRefused::SYLLABLE_WITHOUT_NOTE,
                         "section {$k} syllable {$s} (\"{$syllable->text}\") at beat {$syllable->start} has no melody note starting there.");
+                }
+
+                if (! $withMelody && ! self::startsAt($onsets['changes'], $onsets['origins'], $k, $syllable->start, [$k, $k - 1])) {
+                    throw new NotationRequestRefused(NotationRequestRefused::SYLLABLE_OFF_CHORD,
+                        "section {$k} syllable {$s} (\"{$syllable->text}\") at beat {$syllable->start} is under no chord change; in a section without melody only a unit under a change (of this section, or of the previous one for a lead-in) has a start.");
                 }
             }
         }
     }
 
     /**
-     * Every melody note's onset as a score beat — its section's origin plus its start, section 0's origin being its
-     * first downbeat — and each section's origin. An origin after a section whose bar length is unknown (its meter does
-     * not parse) is null; a note there is matched in its own section only.
+     * Every melody note's and every chord change's onset, by section, and each section's origin in score beats (section
+     * 0's origin is its first downbeat). A section without `changes` has its v1 changes: one per bar, at each downbeat.
+     * An origin after a section whose bar length is unknown (its meter does not parse) is null; an onset there is matched
+     * in its own section only.
      *
      * @param  list<mixed>  $sections
      * @param  list<?float>  $bars
-     * @return array{notes: list<array{section: int, start: float}>, origins: list<?float>}
+     * @return array{notes: list<array{section: int, start: float}>, changes: list<array{section: int, start: float}>, origins: list<?float>}
      */
-    private static function melodyOnsets(array $sections, array $bars): array
+    private static function onsets(array $sections, array $bars): array
     {
         $origins = [];
         $origin = 0.0;
+        $notes = [];
+        $changes = [];
+
         foreach ($sections as $k => $section) {
             $origins[$k] = $origin;
-            $origin = $origin !== null && $section instanceof MusicSection && $bars[$k] !== null
-                ? $origin + count($section->chords) * $bars[$k]
-                : null;
-        }
+            if (! $section instanceof MusicSection) {
+                $origin = null;
 
-        $notes = [];
-        foreach ($sections as $k => $section) {
-            if (! $section instanceof MusicSection || ! is_array($section->melody)) {
                 continue;
             }
-            foreach ($section->melody as $note) {
+            $origin = $origin !== null && $bars[$k] !== null ? $origin + count($section->chords) * $bars[$k] : null;
+
+            foreach (is_array($section->melody) ? $section->melody : [] as $note) {
                 if ($note instanceof MelodyNote) {
                     $notes[] = ['section' => $k, 'start' => $note->start];
                 }
             }
+
+            $declared = $section->changeList();
+            if ($declared !== []) {
+                foreach ($declared as $change) {
+                    $changes[] = ['section' => $k, 'start' => $change->start];
+                }
+            } elseif ($bars[$k] !== null) {
+                foreach (array_keys(array_values($section->chords)) as $b) {
+                    $changes[] = ['section' => $k, 'start' => $b * $bars[$k]];
+                }
+            }
         }
 
-        return ['notes' => $notes, 'origins' => $origins];
+        return ['notes' => $notes, 'changes' => $changes, 'origins' => $origins];
     }
 
     /**
-     * Whether a melody note starts at a section's beat: one of its own notes there, or any note at the same score beat.
+     * Whether one of `$onsets` starts at a section's beat: in that section at the same start, or in score beats at the
+     * same beat. `$from` limits the sections an onset may come from; null admits every section.
      *
-     * @param  array{notes: list<array{section: int, start: float}>, origins: list<?float>}  $onsets
+     * @param  list<array{section: int, start: float}>  $onsets
+     * @param  list<?float>  $origins
+     * @param  list<int>|null  $from
      */
-    private static function hasNoteAt(array $onsets, int $section, float $start): bool
+    private static function startsAt(array $onsets, array $origins, int $section, float $start, ?array $from = null): bool
     {
-        $origin = $onsets['origins'][$section];
+        $origin = $origins[$section];
 
-        foreach ($onsets['notes'] as $note) {
-            if ($note['section'] === $section && abs($note['start'] - $start) < self::ONSET_EPSILON) {
+        foreach ($onsets as $onset) {
+            if ($from !== null && ! in_array($onset['section'], $from, true)) {
+                continue;
+            }
+            if ($onset['section'] === $section && abs($onset['start'] - $start) < self::ONSET_EPSILON) {
                 return true;
             }
-            $noteOrigin = $onsets['origins'][$note['section']];
-            if ($origin !== null && $noteOrigin !== null && abs($noteOrigin + $note['start'] - ($origin + $start)) < self::ONSET_EPSILON) {
+            $onsetOrigin = $origins[$onset['section']];
+            if ($origin !== null && $onsetOrigin !== null && abs($onsetOrigin + $onset['start'] - ($origin + $start)) < self::ONSET_EPSILON) {
                 return true;
             }
         }

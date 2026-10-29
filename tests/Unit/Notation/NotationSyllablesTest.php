@@ -165,8 +165,11 @@ it('underlays only the section with melody: the melody-less one beside it keeps 
 
 it('lets a syllable in section 0 start as early as -pickup, and no earlier', function (float $start, ?string $reason) {
     $units = [['text' => 'Oh,', 'start' => $start, 'line' => 0], ['text' => 'here', 'start' => 0.0, 'line' => 0]];
+    // A melody-less section: each timed unit sits under a change, so the pickup carries one at each tested onset.
+    $sections = [['tag' => 'CHORUS', 'chords' => ['G', 'G', 'D', 'D'], 'roles' => [], 'changes' => [
+        ['symbol' => 'C', 'start' => -2.0], ['symbol' => 'D', 'start' => -1.0], ['symbol' => 'G', 'start' => 0.0], ['symbol' => 'D', 'start' => 8.0]]]];
 
-    expect(syllableRefusalOf(syllablePayload($units, intent: ['pickup' => 2.0]))?->reason)->toBe($reason);
+    expect(syllableRefusalOf(syllablePayload($units, $sections, intent: ['pickup' => 2.0]))?->reason)->toBe($reason);
 })->with([
     'at -pickup' => [-2.0, null],
     'inside the pickup' => [-1.0, null],
@@ -215,4 +218,72 @@ it('never matches a syllable to another section\'s note at the same section-rela
         ['text' => 'here', 'start' => 0.0, 'line' => 0], ['text' => 'she', 'start' => 1.0, 'line' => 0]]]];
 
     expect(syllableRefusalOf(syllablePayload([], $sections, $printed))?->reason)->toBe(NotationRequestRefused::SYLLABLE_WITHOUT_NOTE);
+});
+
+/**
+ * R4 (LEDGER, from the b26 review; 05 Q4): in a section without melody a timed unit sits on a chord change's onset, in its
+ * own section or, as a lead-in, in the previous one, matched in score beats within 1e-6. A section without `changes` has
+ * its v1 changes: one per bar, at each downbeat.
+ */
+function anchorRefusal(array $units, array $sections, array $intent = []): ?string
+{
+    $printed = array_map(fn () => ['label' => 'S'], $sections);
+    $printed[array_key_last($printed)] = ['label' => 'S', 'lines' => ['words'], 'syllables' => $units];
+
+    return syllableRefusalOf(syllablePayload([], $sections, $printed, $intent))?->reason;
+}
+
+it('refuses a melody-less timed unit under no chord change, by name', function () {
+    $refused = syllableRefusalOf(syllablePayload([['text' => 'Here', 'start' => 1.0, 'line' => 0]]));
+
+    expect($refused?->reason)->toBe(NotationRequestRefused::SYLLABLE_OFF_CHORD)
+        ->and($refused->getMessage())->toContain('syllable_off_chord')->toContain('"Here"')->toContain('section 0');
+});
+
+it('anchors a melody-less unit on a sub-bar change of its own section', function () {
+    $sections = [['tag' => 'CHORUS', 'chords' => ['G', 'D'], 'roles' => [],
+        'changes' => [['symbol' => 'G', 'start' => 0.0], ['symbol' => 'C', 'start' => 2.0], ['symbol' => 'D', 'start' => 4.0]]]];
+
+    expect(anchorRefusal([['text' => 'comes', 'start' => 2.0, 'line' => 0]], $sections))->toBeNull()
+        ->and(anchorRefusal([['text' => 'comes', 'start' => 3.0, 'line' => 0]], $sections))->toBe(NotationRequestRefused::SYLLABLE_OFF_CHORD);
+});
+
+it('anchors a melody-less unit on a v1 section\'s bar downbeats when it declares no changes', function () {
+    $sections = [['tag' => 'CHORUS', 'chords' => ['G', 'D'], 'roles' => []]];
+
+    expect(anchorRefusal([['text' => 'comes', 'start' => 4.0, 'line' => 0]], $sections))->toBeNull()
+        ->and(anchorRefusal([['text' => 'comes', 'start' => 2.0, 'line' => 0]], $sections))->toBe(NotationRequestRefused::SYLLABLE_OFF_CHORD);
+});
+
+it('anchors a melody-less lead-in unit on the previous section\'s change at that score beat', function (float $start, ?string $reason) {
+    $sections = [
+        ['tag' => 'INTRO', 'chords' => ['G'], 'roles' => [], 'changes' => [['symbol' => 'G', 'start' => 0.0], ['symbol' => 'C', 'start' => 2.0]]],
+        ['tag' => 'VERSE', 'chords' => ['D'], 'roles' => []],
+    ];
+
+    expect(anchorRefusal([['text' => 'and', 'start' => $start, 'line' => 0], ['text' => 'here', 'start' => 0.0, 'line' => 0]], $sections))->toBe($reason);
+})->with([
+    'on the intro\'s C (score beat 2)' => [-2.0, null],
+    'between the intro\'s changes' => [-1.0, NotationRequestRefused::SYLLABLE_OFF_CHORD],
+]);
+
+it('anchors a melody-less pickup unit on the section-0 pickup chord', function (float $start, ?string $reason) {
+    $sections = [['tag' => 'VERSE', 'chords' => ['G'], 'roles' => [], 'changes' => [['symbol' => 'D', 'start' => -1.0], ['symbol' => 'G', 'start' => 0.0]]]];
+
+    expect(anchorRefusal([['text' => 'Oh,', 'start' => $start, 'line' => 0], ['text' => 'here', 'start' => 0.0, 'line' => 0]], $sections, ['pickup' => 2.0]))->toBe($reason);
+})->with([
+    'on the pickup chord' => [-1.0, null],
+    'in the pickup, under no chord' => [-2.0, NotationRequestRefused::SYLLABLE_OFF_CHORD],
+]);
+
+it('never anchors a unit on the next section\'s change', function () {
+    // Section 0 ends at beat 4, where section 1's first change sounds; a section-0 unit there sits under neither of its
+    // own changes nor a previous section's.
+    $sections = [
+        ['tag' => 'INTRO', 'chords' => ['G'], 'roles' => []],
+        ['tag' => 'VERSE', 'chords' => ['D'], 'roles' => [], 'melody' => [['pitch' => 62, 'start' => 0.0, 'duration' => 1.0]]],
+    ];
+    $printed = [['label' => 'INTRO', 'lines' => ['oh'], 'syllables' => [['text' => 'oh', 'start' => 4.0, 'line' => 0]]], ['label' => 'VERSE']];
+
+    expect(syllableRefusalOf(syllablePayload([], $sections, $printed))?->reason)->toBe(NotationRequestRefused::SYLLABLE_OFF_CHORD);
 });
