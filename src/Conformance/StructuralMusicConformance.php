@@ -74,11 +74,11 @@ class StructuralMusicConformance implements MusicConformance
         $pickup = $intent->pickupBeats();
         if (! is_finite($pickup) || $pickup < 0) {
             $mandatory[] = "The pickup {$pickup} must be a non-negative number of beats.";
-            $pickup = 0.0;
         }
 
         $bars = self::sectionBars($intent);
         $floors = self::earliestStarts($intent);
+        $first = array_key_first($intent->sections);
 
         foreach ($intent->sections as $i => $section) {
             if (! $section instanceof MusicSection) {
@@ -88,7 +88,7 @@ class StructuralMusicConformance implements MusicConformance
             $bar = $bars[$i];
             $floor = $floors[$i];
 
-            $this->checkChanges($where, $section, $bar, $i === 0 ? -$pickup : 0.0, $mandatory);
+            $this->checkChanges($where, $section, $bar, $i === $first ? $floor : 0.0, $mandatory);
 
             if (count($section->chords) < 1) {
                 $mandatory[] = "{$where} has no chords (a section must be at least one bar).";

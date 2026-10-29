@@ -12,7 +12,8 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 /**
  * What is printed for one section of the request's intent, aligned by index (music-capability-lift ticket 02
  * Q1): the owner's heading (`label`, `direction`), the lyric `lines`, optional `syllables` (the section's ordered
- * units; {@see NotationSyllable} for when each is timed), and inline `cues`. A section's `tag` is an energy tag, not a label; the label is the owner's own heading.
+ * units; {@see NotationSyllable} for when each is timed), and inline `cues`. A section's `tag` is an energy tag,
+ * not a label; the label is the owner's own heading.
  */
 #[TypeScript]
 #[Title('Notation section')]

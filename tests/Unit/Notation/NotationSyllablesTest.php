@@ -205,3 +205,14 @@ it('matches a melody section\'s lead-in syllable to the note sounding at that sc
     'the same beat, authored in the intro' => [['melody' => [['pitch' => 62, 'start' => 3.0, 'duration' => 1.0]]], [], null],
     'no note at that beat' => [['melody' => [['pitch' => 62, 'start' => 2.0, 'duration' => 1.0]]], [], NotationRequestRefused::SYLLABLE_WITHOUT_NOTE],
 ]);
+
+it('never matches a syllable to another section\'s note at the same section-relative beat', function () {
+    $sections = [
+        ['tag' => 'INTRO', 'chords' => ['G'], 'roles' => [], 'melody' => [['pitch' => 62, 'start' => 1.0, 'duration' => 1.0]]],
+        ['tag' => 'VERSE', 'chords' => ['G'], 'roles' => [], 'melody' => [['pitch' => 67, 'start' => 0.0, 'duration' => 1.0]]],
+    ];
+    $printed = [['label' => 'INTRO'], ['label' => 'VERSE', 'lines' => ['here she'], 'syllables' => [
+        ['text' => 'here', 'start' => 0.0, 'line' => 0], ['text' => 'she', 'start' => 1.0, 'line' => 0]]]];
+
+    expect(syllableRefusalOf(syllablePayload([], $sections, $printed))?->reason)->toBe(NotationRequestRefused::SYLLABLE_WITHOUT_NOTE);
+});
