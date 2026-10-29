@@ -18,8 +18,10 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
  * A score that could not honestly be given is **null with a named reason**, never zero:
  * - {@see self::UNALIGNABLE} — the take has fewer beats than the plan has chords;
  * - {@see self::COMPRESSED} — a section's aligned span is the one-beat-per-chord minimum (a skipped or reordered
- *   section the forced path cannot represent);
- * - {@see self::CONFORMANCE_UNGATED} — the gate's controls failed, so conformance is not emitted.
+ *   section the forced path cannot represent).
+ *
+ * When the gate's controls fail, conformance is not emitted at all: there is no `PlanConformanceData`, and
+ * {@see TranscriptionResult::$planConformanceReason} says `conformance ungated` (04 Q6; owner ruling O1).
  *
  * `overall` and each section hold that pairing at construction: a score has no reason, a null score has one of
  * {@see self::REASONS}. Wire names are snake_case, mapped per property.
@@ -32,9 +34,7 @@ class PlanConformanceData extends Data
 
     public const COMPRESSED = 'compressed';
 
-    public const CONFORMANCE_UNGATED = 'conformance ungated';
-
-    public const REASONS = [self::UNALIGNABLE, self::COMPRESSED, self::CONFORMANCE_UNGATED];
+    public const REASONS = [self::UNALIGNABLE, self::COMPRESSED];
 
     /**
      * @param  list<PlanConformanceSectionData>  $sections
@@ -52,7 +52,7 @@ class PlanConformanceData extends Data
         #[Description('The take\'s conformance; null exactly when reason names why.')]
         public ?float $overall,
         #[Title('Reason')]
-        #[Description('unalignable | compressed | conformance ungated; present exactly when overall is null.')]
+        #[Description('unalignable | compressed; present exactly when overall is null.')]
         public ?string $reason = null,
     ) {
         self::holdScoreOrReason('overall', $overall, $reason);

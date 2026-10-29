@@ -1,6 +1,7 @@
 <?php
 
 use Spatie\LaravelData\Exceptions\CannotCastEnum;
+use Spatie\LaravelData\Exceptions\CannotCreateData;
 use Splicewire\Composition\Music\ChordChange;
 use Splicewire\Composition\Music\Transcription\AlignedChordData;
 use Splicewire\Composition\Music\Transcription\ChartDraftData;
@@ -13,6 +14,7 @@ use Splicewire\Composition\Music\Transcription\TempoPriorData;
 use Splicewire\Composition\Music\Transcription\TempoPriorSource;
 use Splicewire\Composition\Music\Transcription\TranscriptionDispatchData;
 use Splicewire\Composition\Music\Transcription\TranscriptionNotesData;
+use Splicewire\Composition\Music\Transcription\TranscriptionPipelineData;
 use Splicewire\Composition\Music\Transcription\TranscriptionResult;
 use Splicewire\Composition\Music\Transcription\TranscriptionRunData;
 use Splicewire\Composition\Music\Transcription\TranscriptionRunState;
@@ -108,6 +110,7 @@ function transcriptionResultPayload(array $overrides = []): array
 {
     return [
         'separation_run_key' => str_repeat('s', 64),
+        'pipeline' => ['name' => 'music.transcribe.pipeline', 'version' => '1.0.0', 'policy_digest' => str_repeat('p', 64)],
         'stages' => [
             ['stage' => 'beats', 'name' => 'music.transcribe.stage.beats.librosa', 'version' => '1.0.0'],
             ['stage' => 'chords', 'name' => 'music.transcribe.stage.chords.chroma', 'version' => '1.0.0'],
@@ -123,6 +126,7 @@ function transcriptionResultPayload(array $overrides = []): array
         'transcribed_seconds' => 237.0,
         'gated' => true,
         'melody_reason' => 'vocal leg uncalibrated',
+        'plan_conformance_reason' => null,
         ...$overrides,
     ];
 }
@@ -264,7 +268,7 @@ it('round-trips a TranscriptionResult with every member snake_case', function ()
         ->and($result->planConformance)->toBeInstanceOf(PlanConformanceData::class)
         ->and($result->planConformance->sections[0]->aligned[0])->toBeInstanceOf(AlignedChordData::class)
         ->and(array_keys($result->toArray()))->toBe([
-            'separation_run_key', 'stages', 'draft', 'notes', 'melody_ref', 'plan_conformance', 'transcribed_seconds', 'gated', 'melody_reason',
+            'separation_run_key', 'pipeline', 'stages', 'draft', 'notes', 'melody_ref', 'plan_conformance', 'transcribed_seconds', 'gated', 'melody_reason', 'plan_conformance_reason',
         ])
         ->and($result->toArray())->toBe(transcriptionResultPayload())
         ->and(TranscriptionResult::from($result->toArray())->toArray())->toBe($result->toArray());
@@ -320,6 +324,7 @@ it('round-trips each nested Data on its own', function (string $class, array $pa
     expect($data->toArray())->toBe($payload)
         ->and($class::from($data->toArray())->toArray())->toBe($payload);
 })->with([
+    'TranscriptionPipelineData' => [TranscriptionPipelineData::class, ['name' => 'music.transcribe.pipeline', 'version' => '2.1.0', 'policy_digest' => str_repeat('a', 64)]],
     'TranscriptionStageData' => [TranscriptionStageData::class, ['stage' => 'notes.vocals', 'name' => 'music.transcribe.stage.notes.pyin', 'version' => '2']],
     'DraftBarData' => [DraftBarData::class, draftBarPayload(3, 12.0, 3.0, ['reasons' => ['grid', 'evidence']])],
     'DraftChangeMetaData' => [DraftChangeMetaData::class, ['index' => 0, 'confidence' => 0.5, 'reasons' => ['ungated: pickup']]],
@@ -342,7 +347,7 @@ it('carries a null plan conformance score only with a named reason', function (s
         ->and($unalignable->reason)->toBe($reason)
         ->and($unalignable->sections[0]->reason)->toBe($reason)
         ->and(PlanConformanceData::from($unalignable->toArray())->toArray())->toBe($unalignable->toArray());
-})->with(['unalignable', 'compressed', 'conformance ungated']);
+})->with(['unalignable', 'compressed']);
 
 it('refuses a plan conformance score paired wrongly with its reason', function (array $overrides) {
     expect(fn () => PlanConformanceData::from(planConformancePayload($overrides)))
@@ -350,6 +355,7 @@ it('refuses a plan conformance score paired wrongly with its reason', function (
 })->with([
     'null overall without a reason' => [['overall' => null, 'reason' => null]],
     'null overall with an unnamed reason' => [['overall' => null, 'reason' => 'too quiet']],
+    'conformance ungated inside the object (04 Q6: not emitted)' => [['overall' => null, 'reason' => 'conformance ungated']],
     'scored overall with a reason' => [['overall' => 0.4, 'reason' => 'compressed']],
     'null section without a reason' => [['sections' => [[...planConformancePayload()['sections'][0], 'conformance' => null, 'reason' => null]]]],
     'scored section with a reason' => [['sections' => [[...planConformancePayload()['sections'][0], 'reason' => 'unalignable']]]],
@@ -438,3 +444,55 @@ it('holds error exactly when failed across every state × {null, empty, non-empt
     'failed, empty' => ['failed', '', false],
     'failed, non-empty' => ['failed', 'stale', true],
 ]);
+
+it('withholds plan conformance when the controls fail: null, with conformance ungated beside it (04 Q6, O1)', function () {
+    $result = TranscriptionResult::from(transcriptionResultPayload([
+        'plan_conformance' => null,
+        'plan_conformance_reason' => 'conformance ungated',
+    ]));
+
+    expect($result->planConformance)->toBeNull()
+        ->and($result->planConformanceReason)->toBe(TranscriptionResult::CONFORMANCE_UNGATED)
+        ->and($result->toArray()['plan_conformance'])->toBeNull()
+        ->and($result->toArray()['plan_conformance_reason'])->toBe('conformance ungated')
+        ->and(TranscriptionResult::from($result->toArray())->toArray())->toBe($result->toArray());
+});
+
+it('carries neither plan conformance nor its reason for a take with no plan', function () {
+    $payload = transcriptionResultPayload(['plan_conformance' => null]);
+    unset($payload['plan_conformance_reason']);
+
+    $result = TranscriptionResult::from($payload);
+
+    expect($result->planConformance)->toBeNull()
+        ->and($result->planConformanceReason)->toBeNull();
+});
+
+it('refuses a plan conformance reason beside emitted conformance, or any reason but conformance ungated', function (?array $conformance, string $reason) {
+    expect(fn () => TranscriptionResult::from(transcriptionResultPayload(['plan_conformance' => $conformance, 'plan_conformance_reason' => $reason])))
+        ->toThrow(InvalidArgumentException::class, 'plan_conformance');
+})->with([
+    'reason beside emitted conformance' => [planConformancePayload(), 'conformance ungated'],
+    'unalignable at the result level' => [null, 'unalignable'],
+    'an empty reason' => [null, ''],
+]);
+
+it('carries the executed pipeline\'s identity, required, in snake_case', function () {
+    $result = TranscriptionResult::from(transcriptionResultPayload());
+
+    expect($result->pipeline)->toBeInstanceOf(TranscriptionPipelineData::class)
+        ->and($result->pipeline->policyDigest)->toBe(str_repeat('p', 64))
+        ->and($result->toArray()['pipeline'])->toBe(['name' => 'music.transcribe.pipeline', 'version' => '1.0.0', 'policy_digest' => str_repeat('p', 64)]);
+
+    $payload = transcriptionResultPayload();
+    unset($payload['pipeline']);
+
+    expect(fn () => TranscriptionResult::from($payload))->toThrow(CannotCreateData::class, 'pipeline')
+        ->and(fn () => TranscriptionResult::from(transcriptionResultPayload(['pipeline' => null])))->toThrow(TypeError::class, 'pipeline');
+});
+
+it('refuses a pipeline with an empty member', function (string $member) {
+    $pipeline = ['name' => 'music.transcribe.pipeline', 'version' => '1.0.0', 'policy_digest' => str_repeat('p', 64), $member => ' '];
+
+    expect(fn () => TranscriptionPipelineData::from($pipeline))->toThrow(InvalidArgumentException::class, $member);
+})->with(['name', 'version', 'policy_digest']);

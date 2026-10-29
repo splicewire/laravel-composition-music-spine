@@ -44,7 +44,7 @@ class PlanConformanceSectionData extends Data
         #[MapName('free_root_agreement')]
         public ?float $freeRootAgreement,
         #[Title('Reason')]
-        #[Description('unalignable | compressed | conformance ungated; present exactly when conformance is null.')]
+        #[Description('unalignable | compressed; present exactly when conformance is null.')]
         public ?string $reason = null,
     ) {
         PlanConformanceData::holdScoreOrReason("section \"{$label}\"", $conformance, $reason);
