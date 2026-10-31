@@ -56,6 +56,7 @@ class NotationRequest extends Data
         public NotationSource $source,
 
         #[Title('Title')]
+        #[Description('The title printed on the exported notation; page metadata participates in the notation request digest.')]
         public string $title,
 
         #[Title('Sections')]
@@ -73,9 +74,11 @@ class NotationRequest extends Data
         public NotationArrangement $arrangement,
 
         #[Title('Composer')]
+        #[Description('Optional composer credit for the exported notation; page metadata participates in the notation request digest.')]
         public ?string $composer = null,
 
         #[Title('Lyricist')]
+        #[Description('Optional lyricist credit for the exported notation; page metadata participates in the notation request digest.')]
         public ?string $lyricist = null,
 
         #[Title('Lyric block')]
