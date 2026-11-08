@@ -6,6 +6,7 @@ use Schemastud\DataSchemas\Attributes\ArrayItems;
 use Schemastud\DataSchemas\Attributes\Description;
 use Schemastud\DataSchemas\Attributes\Title;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
+use Spatie\LaravelData\Attributes\Validation\Present;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 
@@ -46,6 +47,13 @@ class MusicSection extends Data
         #[Title('Active roles')]
         #[Description('Which parts play: drums|bass|keys|pad|lead|vocal. Empty = Arranger default (all).')]
         #[ArrayItems('string')]
+        // `roles` may be empty ("Arranger default, all roles"); an absent key defaults to [] (the `= []`
+        // default fills it before validation), so both an empty array and an omitted key validate. The bug
+        // this guards: a non-`Optional`, non-nullable property infers a `required` rule, and Laravel's
+        // `required` REJECTS an empty array, so a body carrying `roles: []` would 422 ("The …roles field is
+        // required."). `#[Present]` relaxes that to `present|array` — an empty array passes (and the wire
+        // shape always serializes a plain `[]` for the probe/digest) — while a non-array value still rejects.
+        #[Present]
         public array $roles = [],
 
         #[Title('Melody')]
