@@ -65,7 +65,7 @@ class NotationRequest extends Data
         public array $sections,
 
         #[Title('Formats')]
-        #[Description('The outputs to produce: musicxml | svg | pdf | chart. Required and non-empty; no default.')]
+        #[Description('The outputs to produce: musicxml | svg | pdf | chart | comp_midi. Required and non-empty; no default.')]
         #[ArrayItems(NotationFormat::class)]
         public array $formats,
 
@@ -91,7 +91,11 @@ class NotationRequest extends Data
         ));
 
         if ($this->formats === []) {
-            throw new NotationRequestRefused(NotationRequestRefused::FORMATS_EMPTY, 'formats must name at least one of musicxml, svg, pdf, chart.');
+            throw new NotationRequestRefused(NotationRequestRefused::FORMATS_EMPTY, 'formats must name at least one of musicxml, svg, pdf, chart, comp_midi.');
+        }
+
+        if (in_array(NotationFormat::CompMidi, $this->formats, true) && $arrangement !== NotationArrangement::Piano) {
+            throw new NotationRequestRefused(NotationRequestRefused::COMP_MIDI_NOT_PIANO, 'comp_midi is the piano comp; it requires arrangement piano.');
         }
 
         $expected = count($intent->sections);

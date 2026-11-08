@@ -135,14 +135,23 @@ it('digests a zero pickup and empty changes as their absence, so a ladder-migrat
         ->and(notationRequest()->digest())->not->toBe($digest); // a real pickup still counts
 });
 
-it('declares formats as a list of the four format names in its schema', function () {
+it('declares formats as a list of the five format names in its schema', function () {
     config()->set('data-schemas.base_uri', 'https://app.splicewire.com/schemas');
 
     $formats = app(Generator::class)
         ->generate(new ReflectionClass(NotationRequest::class))['properties']['formats'];
 
     expect($formats['type'])->toBe('array')
-        ->and(json_encode($formats['items']))->toContain('musicxml')->toContain('svg')->toContain('pdf')->toContain('chart');
+        ->and(json_encode($formats['items']))->toContain('musicxml')->toContain('svg')->toContain('pdf')->toContain('chart')->toContain('comp_midi');
+});
+
+it('accepts comp_midi only with a piano arrangement, and refuses it otherwise by name', function () {
+    expect(notationRequest(['formats' => ['comp_midi'], 'arrangement' => 'piano'])->formats[0]->value)
+        ->toBe('comp_midi')
+        ->and(refusalOf(fn () => notationRequest(['formats' => ['comp_midi'], 'arrangement' => 'lead_sheet'])))
+        ->toBe(NotationRequestRefused::COMP_MIDI_NOT_PIANO)
+        ->and(refusalOf(fn () => notationRequest(['formats' => ['comp_midi', 'musicxml'], 'arrangement' => 'lead_sheet'])))
+        ->toBe(NotationRequestRefused::COMP_MIDI_NOT_PIANO);
 });
 
 it('changes the digest when one melody note changes', function () {
