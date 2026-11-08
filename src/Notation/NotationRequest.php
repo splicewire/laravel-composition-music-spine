@@ -91,7 +91,11 @@ class NotationRequest extends Data
         ));
 
         if ($this->formats === []) {
-            throw new NotationRequestRefused(NotationRequestRefused::FORMATS_EMPTY, 'formats must name at least one of musicxml, svg, pdf, chart.');
+            throw new NotationRequestRefused(NotationRequestRefused::FORMATS_EMPTY, 'formats must name at least one of musicxml, svg, pdf, chart, comp_midi.');
+        }
+
+        if (in_array(NotationFormat::CompMidi, $this->formats, true) && $arrangement !== NotationArrangement::Piano) {
+            throw new NotationRequestRefused(NotationRequestRefused::COMP_MIDI_NOT_PIANO, 'comp_midi is the piano comp; it requires arrangement piano.');
         }
 
         $expected = count($intent->sections);

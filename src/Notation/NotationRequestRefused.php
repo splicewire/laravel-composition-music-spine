@@ -27,6 +27,8 @@ class NotationRequestRefused extends InvalidArgumentException
 {
     public const FORMATS_EMPTY = 'formats_empty';
 
+    public const COMP_MIDI_NOT_PIANO = 'comp_midi_not_piano';
+
     public const SECTIONS_MISMATCH = 'sections_mismatch';
 
     public const LYRIC_BLOCK_WITHOUT_PAGES = 'lyric_block_without_pages';
