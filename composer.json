@@ -73,46 +73,28 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../../rushing/laravel-pipeline-registry",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-pipeline-registry"
         },
         {
-            "type": "path",
-            "url": "../../rushing/laravel-popcorn",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-popcorn"
         },
         {
-            "type": "path",
-            "url": "../../rushing/php-popcorn",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/stephenr85/laravel-timeline-schema"
         },
         {
-            "type": "path",
-            "url": "../../schemastud/laravel-data-schemas",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/stephenr85/php-popcorn"
         },
         {
-            "type": "path",
-            "url": "../../schemastud/php-json-ns",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/schemastud/laravel-data-schemas"
         },
         {
-            "type": "path",
-            "url": "../../rushing/laravel-timeline-schema",
-            "options": {
-                "symlink": true
-            }
+            "type": "git",
+            "url": "https://github.com/schemastud/php-json-ns"
         }
     ]
 }
